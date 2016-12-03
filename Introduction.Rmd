@@ -4,13 +4,13 @@ output: html_notebook
 ---
 
 # 1 R语言在数据科学领域的工作流程
-+ 1 **导入（import）**数据  
++ 1 数据**导入（import）**  
 将存储于文件、数据库、web API中的数据以数据框的形式导入R。
 
-+ 2 **清洗（tidy）**数据  
++ 2 数据**清洗（tidy）**  
 将导入R内的数据清洗成一致的格式：每一列是一个变量，每一行是一个观测。
 
-+ 3 **转换（transform）**数据  
++ 3 数据**转换（transform）**  
 在数据集中选取感兴趣的子集，构造新的变量，计算统计量。**tidying**和**transforming**统称为**wrangling**。
 
 + 4 数据**可视化（visualisation）**  
