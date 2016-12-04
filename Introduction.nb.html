@@ -177,14 +177,16 @@ $(document).ready(function () {
 <ul>
 <li><p>1 数据<strong>导入（import）</strong><br />
 将存储于文件、数据库、web API中的数据以数据框的形式导入R。</p></li>
-<li><p>2 数据<strong>清洗（tidy）</strong><br />
-将导入R内的数据清洗成一致的格式：每一列是一个变量，每一行是一个观测。</p></li>
+<li><p>2 数据<strong>规整（tidy）</strong><br />
+将导入R内的数据规整成一致的格式：每一列是一个变量，每一行是一个观测。</p></li>
 <li><p>3 数据<strong>转换（transform）</strong><br />
-在数据集中选取感兴趣的子集，构造新的变量，计算统计量。<strong>tidying</strong>和<strong>transforming</strong>统称为<strong>wrangling</strong>。</p></li>
+在数据集中选取感兴趣的子集，构造新的变量，计算统计量。<br />
+<strong>tidying</strong>和<strong>transforming</strong>统称为<strong>wrangling</strong>。</p></li>
 <li><p>4 数据<strong>可视化（visualisation）</strong><br />
 数据可视化可以展现数据中隐藏的规律，引发新的问题，提示你可能问了错误的问题，或者使用了错误的数据。</p></li>
 <li><p>5 数据<strong>建模（model）</strong><br />
-建模是对可视化的补充。如果能够将问题精确地限定，就可以通过建模回答这些问题。但是建模只能证实或否定假设，却无法对假设本身提出疑问。</p></li>
+建模是对可视化的补充。如果能够精确地定义问题，就可以通过建模回答这些问题。但是建模只能证实或否定假设，却无法对假设本身提出疑问。因此，在实际的分析过程中，我们会在可视化与建模之间进行多次反复迭代。<br />
+<strong>visualisation</strong>、<strong>transformation</strong>和<strong>modelling</strong>统称为<strong>Exploratory Data Analysis</strong>。</p></li>
 <li><p>6 数据<strong>展示（communication）</strong><br />
 数据可视化和建模的结果，最终需要展示给别人。</p></li>
 <li><p>7 <strong>编程（programming）</strong><br />
@@ -202,7 +204,7 @@ install.packages(c(&quot;nycflights13&quot;, &quot;gapminder&quot;, &quot;Lahman
 <!-- rnb-text-end -->
 </div>
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIrW8wtsiDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KDQojIDEgUtPv0dTU2sr9vt2/xtGnwezT8rXEuaTX98H3s8wNCisgMSDK/b7dKiq1vMjro6hpbXBvcnSjqSoqICANCr2rtOa0otPazsS8/qGiyv2+3b/ioaJ3ZWIgQVBJ1tC1xMr9vt3S1Mr9vt2/8rXE0M7KvbW8yOtSoaMNCg0KKyAyIMr9vt0qKsflz7SjqHRpZHmjqSoqICANCr2rtbzI61LE2rXEyv2+3cflz7SzydK71sK1xLjxyr2jusO/0rvB0MrH0ru49rHkwb+jrMO/0rvQ0MrH0ru49rnbsuKhow0KDQorIDMgyv2+3Soq16q7u6OodHJhbnNmb3Jto6kqKiAgDQrU2sr9vt28r9bQ0aHIobjQ0MvIpLXE19O8r6OsubnU7NDCtcSx5MG/o6y8xsvjzbO8xsG/oaMqKnRpZHlpbmcqKrrNKip0cmFuc2Zvcm1pbmcqKs2zs8bOqioqd3JhbmdsaW5nKiqhow0KDQorIDQgyv2+3Soqv8nK07uvo6h2aXN1YWxpc2F0aW9uo6kqKiAgDQrK/b7dv8nK07uvv8nS1NW5z9bK/b7d1tDS/rLYtcS55sLJo6zS/bei0MK1xM7KzOKjrMzhyr7E47/JxNzOysHLtO3O87XEzsrM4qOsu/LV38q508PBy7TtzvO1xMr9vt2how0KDQorIDUgyv2+3SoqvajEo6OobW9kZWyjqSoqICANCr2oxKPKx7bUv8nK07uvtcSyubPkoaPI57n7xNy5u72rzsrM4r6ryLe12M/etqijrL7Nv8nS1M2ouf29qMSju9i08NXi0KnOyszioaO1q8rHvajEo9a7xNzWpMq1u/K38baovNnJ6KOsyLTO3reottS82cnosb7J7czhs/bSyc7KoaMNCg0KKyA2IMr9vt0qKtW5yr6jqGNvbW11bmljYXRpb26jqSoqICANCsr9vt2/ycrTu6+6zb2oxKO1xL3hufujrNfu1tXQ6NKq1bnKvrj4sfDIy6GjDQoNCisgNyAqKrHgs8yjqHByb2dyYW1taW5no6kqKiAgDQrX986qyv2+3b/G0ae80qOssqKyu9Do0qqzyc6q0ru49rHgs8zXqLzSoaO1q8rH07XT0MG8usO1xLHgs8y8vMTco6y/ydLUyMPE472rucy2qLXEuaTX99fUtq+7r6OstNO2+L3ayqGz9sqxvOTIpb3ivva4/LTztcTOyszioaMNCg0KIVtdKGh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9ibHVlbGliZXJ0eS9SLWZvci1EYXRhLVNjaWVuY2UvbWFzdGVyL1BpY3R1cmVzL2RhdGEtc2NpZW5jZS5wbmcpDQoNCiMgMiDQ6NKqyrnTw7XEsPyjqHBhY2thZ2WjqQ0KYGBgDQppbnN0YWxsLnBhY2thZ2VzKCJ0aWR5dmVyc2UiKQ0KaW5zdGFsbC5wYWNrYWdlcyhjKCJueWNmbGlnaHRzMTMiLCAiZ2FwbWluZGVyIiwgIkxhaG1hbiIpKQ0KYGBg</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIrW8wtsiDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KDQojIDEgUtPv0dTU2sr9vt2/xtGnwezT8rXEuaTX98H3s8wNCisgMSDK/b7dKiq1vMjro6hpbXBvcnSjqSoqICANCr2rtOa0otPazsS8/qGiyv2+3b/ioaJ3ZWIgQVBJ1tC1xMr9vt3S1Mr9vt2/8rXE0M7KvbW8yOtSoaMNCg0KKyAyIMr9vt0qKrnm1fujqHRpZHmjqSoqICANCr2rtbzI61LE2rXEyv2+3bnm1fuzydK71sK1xLjxyr2jusO/0rvB0MrH0ru49rHkwb+jrMO/0rvQ0MrH0ru49rnbsuKhow0KDQorIDMgyv2+3Soq16q7u6OodHJhbnNmb3Jto6kqKiAgDQrU2sr9vt28r9bQ0aHIobjQ0MvIpLXE19O8r6OsubnU7NDCtcSx5MG/o6y8xsvjzbO8xsG/oaMgIA0KKip0aWR5aW5nKiq6zSoqdHJhbnNmb3JtaW5nKirNs7PGzqoqKndyYW5nbGluZyoqoaMNCg0KKyA0IMr9vt0qKr/JytO7r6OodmlzdWFsaXNhdGlvbqOpKiogIA0Kyv2+3b/JytO7r7/J0tTVuc/Wyv2+3dbQ0v6y2LXEuebCyaOs0v23otDCtcTOyszio6zM4cq+xOO/ycTczsrBy7TtzvO1xM7KzOKjrLvy1d/KudPDwcu07c7ztcTK/b7doaMNCg0KKyA1IMr9vt0qKr2oxKOjqG1vZGVso6kqKiAgDQq9qMSjyse21L/JytO7r7XEsrmz5KGjyOe5+8Tcubu+q8i3tdi2qNLlzsrM4qOsvs2/ydLUzai5/b2oxKO72LTw1eLQqc7KzOKho7Wryse9qMSj1rvE3NakyrW78rfxtqi82cnoo6zItM7et6i21LzZyeixvsntzOGz9tLJzsqho9LytMujrNTayrW8yrXEt9bO9rn9s8zW0KOsztLDx7vh1Nq/ycrTu6/T672oxKPWrrzkvfjQ0LbgtM63tLi0tfy0+qGjICANCioqdmlzdWFsaXNhdGlvbioqoaIqKnRyYW5zZm9ybWF0aW9uKiq6zSoqbW9kZWxsaW5nKirNs7PGzqoqKkV4cGxvcmF0b3J5IERhdGEgQW5hbHlzaXMqKqGjDQoNCisgNiDK/b7dKirVucq+o6hjb21tdW5pY2F0aW9uo6kqKiAgDQrK/b7dv8nK07uvus29qMSjtcS94bn7o6zX7tbV0OjSqtW5yr64+LHwyMuhow0KDQorIDcgKiqx4LPMo6hwcm9ncmFtbWluZ6OpKiogIA0K1/fOqsr9vt2/xtGnvNKjrLKisrvQ6NKqs8nOqtK7uPax4LPM16i80qGjtavKx9O109DBvLrDtcSx4LPMvLzE3KOsv8nS1MjDxOO9q7nMtqi1xLmk1/fX1Lavu6+jrLTTtvi92sqhs/bKsbzkyKW94r72uPy087XEzsrM4qGjDQoNCiFbXShodHRwczovL3Jhdy5naXRodWJ1c2VyY29udGVudC5jb20vYmx1ZWxpYmVydHkvUi1mb3ItRGF0YS1TY2llbmNlL21hc3Rlci9QaWN0dXJlcy9kYXRhLXNjaWVuY2UucG5nKQ0KDQojIDIg0OjSqsq508O1xLD8o6hwYWNrYWdlo6kNCmBgYA0KaW5zdGFsbC5wYWNrYWdlcygidGlkeXZlcnNlIikNCmluc3RhbGwucGFja2FnZXMoYygibnljZmxpZ2h0czEzIiwgImdhcG1pbmRlciIsICJMYWhtYW4iKSkNCmBgYA==</div>
 
 
 
