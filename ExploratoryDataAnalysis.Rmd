@@ -1,0 +1,304 @@
+---
+title: "探索性数据分析"
+output: html_notebook
+---
+
+# 目录
+
+# 1 介绍
+## 1.1 探索性数据分析  
+
++ 1 对数据提出问题  
+
++ 2 通过数据**可视化（visualisation）**、数据**转换（transform）**、数据**建模（model）**来寻找答案  
+
++ 3 利用探索到的知识来提炼问题或提出新的问题
+
+## 1.2 载入包
+```{r}
+library(tidyverse)
+```
+
+# 2 问题
+　　探索性数据分析（EDA）的目的是认识数据。最简单的方法是用问题来指导探索的过程。当你提出一个问题，该问题就会让你的注意力集中于数据集的特定部分，并帮助你决定使用何种方法来进行数据可视化、建模和转换。  
+
+　　EDA是一个创造性的过程。和绝大多数创造性过程相同，提出高质量问题的关键在于提出足够数量的问题。在刚开始进行分析的时候，由于缺乏对数据内在的理解，很难提出有启发意义的问题。但是从另一方面来说，每提出一个新的问题，都会让你了解数据的一个新的方面，从而提高得到发现的机会。如果对于每一个问题，你都能基于发现提出一个新的问题，那你就能够发掘到数据中最有趣的部分，并提出一系列引人深思的问题。  
+
+　　总的来说，你能够提出两类问题：  
+
++ 1. What type of **variation** occurs within my variables?
+
++ 2. What type of **covariation** occurs between my variables?
+
+# 3 变异（Variation）
+　　变异是指变量取值的变化趋势。每一个变量都有其变异的模式（即分布），可以揭示出有趣的信息。理解变量的变异模式的最佳方式，就是对变量取值的分布进行可视化。
+
+## 3.1 可视化分布
+　　如何对变量的分布进行可视化，取决于该变量是离散型变量还是连续型变量。在R中，离散型变量通常以因子（`factor`）或字符向量（`character vector`）的形式保存。  
+
++ 使用条形图 `geom_bar` 观察离散型变量的分布
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut))
+```
+条形图的高度代表每一个类别中样本的个数，可以使用 `dplyr::count()` 来计算得到：
+```{r}
+diamonds %>% 
+  count(cut)
+```
+```
+#> # A tibble: 5 × 2
+#>         cut     n
+#>       <ord> <int>
+#> 1      Fair  1610
+#> 2      Good  4906
+#> 3 Very Good 12082
+#> 4   Premium 13791
+#> 5     Ideal 21551
+```
+
++ 使用直方图 `geom_histogram` 观察连续型变量的分布
+```{r}
+ggplot(data = diamonds) +
+  geom_histogram(mapping = aes(x = carat), binwidth = 0.5)
+```
+直方图的高度代表每一个封箱中样本的个数，可以使用 `dplyr::count()` 和 `ggplot2::cut_width()` 来计算得到：
+```{r}
+diamonds %>% 
+  count(cut_width(carat, 0.5))
+```
+```
+#> # A tibble: 11 × 2
+#>   `cut_width(carat, 0.5)`     n
+#>                    <fctr> <int>
+#> 1            [-0.25,0.25]   785
+#> 2             (0.25,0.75] 29498
+#> 3             (0.75,1.25] 15977
+#> 4             (1.25,1.75]  5313
+#> 5             (1.75,2.25]  2002
+#> 6             (2.25,2.75]   322
+#> # ... with 5 more rows
+```
+
+可以使用 `binwidth` 参数来控制封箱的宽度，设置不同的 `binwidth` ，可以展现出数据中不同的模式。
+```{r}
+smaller <- diamonds %>% 
+  filter(carat < 3)
+
+ggplot(data = diamonds, mapping = aes(x = carat)) +
+  geom_histogram(binwidth = 0.1)
+```
+
++ 使用核密度图 `geom_freqpoly` 在同一幅图中观察多个变量的分布
+```{r}
+ggplot(data = smaller, mapping = aes(x = carat, colour = cut)) +
+  geom_freqpoly(binwidth = 0.1)
+```
+
+　　在对变量的变异模式进行可视化后，我们应该在图中寻找什么样的信息？提出什么样的问题？接下来将会介绍几种最有用的信息和问题，有待我们从可视化的结果中提炼。提出好的问题的关键在于好奇心（你希望发现什么新问题？）和怀疑心（这些问题会产生什么误导？）。
+
+## 3.2 典型值（Typical values）
+在条形图和直方图中，高度代表样本的个数。通常你可以提出以下问题：  
+
++ 哪一个值是最常见的？为什么？
+
++ 哪一个值是最稀少的？为什么？这是否符合你的预估？
+
++ 你是否发现了任何不寻常的模式？如何解释？
+
+举例而言，你可以对下面的直方图提出以下问题：  
+
++ 为什么克拉数是整数或普通分数（common fractions）的钻石更多？  
+
++ 为什么对于每一个峰值，峰值右边的钻石比峰值左边的钻石更多？
+
++ 为什么没有重量大于3克拉的钻石？
+
+```{r}
+ggplot(data = smaller, mapping = aes(x = carat)) +
+  geom_histogram(binwidth = 0.01)
+```
+
+图形提示了钻石的克拉数存在聚类，为了更好地理解数据中的子类别，你可以提出以下问题：  
+
++ 统一聚类内部的样本有何种相似之处？
+
++ 不同聚类的样本之间有何种区别？
+
++ 应该如何解释或描述这些聚类？
+
++ 为什么聚类的存在可能产生误导？
+
+下图展示了黄石国家公园内的老忠实间歇泉272次喷发的时长（分钟）。喷发的时间看上去存在2个聚类，短时间的喷发（2分钟左右）和长时间的喷发（4到5分钟），很少有喷发的时长在此之间。
+```{r}
+ggplot(data = faithful, mapping = aes(x = eruptions)) + 
+  geom_histogram(binwidth = 0.25)
+```
+
+上面提出的很多问题会促使你去探究变量之间的关系，例如，一个变量的取值，是否会影响到另一个变量的取值。
+
+## 3.3 异常值（Unusual values）
+异常值是那些看上去不符合规律的样本点。有时候，异常值是数据录入错误产生的；有时候，异常值会引发新的发现。在直方图中很难直观地发现异常值，只能通过异常的坐标轴界限来发现异常值的存在。
+```{r}
+ggplot(diamonds) + 
+  geom_histogram(mapping = aes(x = y), binwidth = 0.5)
+```
+
+可以通过 `coord_cartesian()` 控制坐标轴界限，对图形进行缩放，从而更好地观察异常值
+```{r}
+ggplot(diamonds) + 
+  geom_histogram(mapping = aes(x = y), binwidth = 0.5) +
+  coord_cartesian(ylim = c(0, 50))
+```
+
+`ylim()` 也可以控制坐标轴界限，但是它会将坐标轴界限外的所有点移除，然后再绘制图形
+```{r}
+ggplot(diamonds) + 
+  geom_histogram(mapping = aes(x = y), binwidth = 0.5) +
+  ylim(c(0, 50))
+```
+
+从图形中可以看出，存在3个异常值（0, ~30, ~60），用 `dplyr` 将异常值取出：
+```{r}
+unusual <- diamonds %>% 
+  filter(y < 3 | y > 20) %>% 
+  arrange(y)
+
+unusual
+```
+```
+#> # A tibble: 9 × 10
+#>   carat       cut color clarity depth table price     x     y     z
+#>   <dbl>     <ord> <ord>   <ord> <dbl> <dbl> <int> <dbl> <dbl> <dbl>
+#> 1  1.00 Very Good     H     VS2  63.3    53  5139  0.00   0.0  0.00
+#> 2  1.14      Fair     G     VS1  57.5    67  6381  0.00   0.0  0.00
+#> 3  1.56     Ideal     G     VS2  62.2    54 12800  0.00   0.0  0.00
+#> 4  1.20   Premium     D    VVS1  62.1    59 15686  0.00   0.0  0.00
+#> 5  2.25   Premium     H     SI2  62.8    59 18034  0.00   0.0  0.00
+#> 6  0.71      Good     F     SI2  64.1    60  2130  0.00   0.0  0.00
+#> 7  0.71      Good     F     SI2  64.1    60  2130  0.00   0.0  0.00
+#> 8  0.51     Ideal     E     VS1  61.8    55  2075  5.15  31.8  5.12
+#> 9  2.00   Premium     H     SI2  58.9    57 12210  8.09  58.9  8.06
+```
+变量 `y` 代表钻石长、宽、高中的一维，单位是毫米（mm）。钻石不可能宽度为0mm，32mm和59mm宽的钻石也不太可能，所以选择剔除这些异常值。
+
+　　通常，最好的办法是在保留和剔除异常值的情况下都进行分析。  
+　　如果异常值对分析结果的影响微乎其微，并且你无法解释存在异常值的原因，那么比较好的选择是用缺失值替代异常值。  
+　　如果异常值对分析结果的影响很显著，那你就不能在没有合理理由的情况下剔除异常值。你需要解释异常值存在的原因，并明确标明你对异常值做的处理。
+
+## 3.4 缺失值（Missing values）
+如果在数据中出现异常值，并且只想对剩余的数据进行分析，那么你有2种选择：  
+
++ 1 删除存在异常值的行
+```{r}
+diamonds2 <- diamonds %>% 
+  filter(between(y, 3, 20))
+```
+
++ 2 用缺失值替代异常值，可以用 `mutate()`、 `ifelse()` 和 `NA` 达到这一目的
+```{r}
+diamonds2 <- diamonds %>% 
+  mutate(y = ifelse(y < 3 | y > 20, NA, y))
+```
+```{r}
+ggplot(data = diamonds2, mapping = aes(x = x, y = y)) + 
+  geom_point()
+```
+使用 `ggplot2` 作图时，缺失值不会显示在图形中，但会针对缺失值给出 warning
+```
+#> Warning: Removed 9 rows containing missing values (geom_point).
+```
+
+`na.rm = TRUE` 参数可以禁用 warning
+```{r}
+ggplot(data = diamonds2, mapping = aes(x = x, y = y)) + 
+  geom_point(na.rm = TRUE)
+```
+
++ 有时候，缺失值也包含了某种信息。在 `flights` 数据集中，变量 `dep_time` 是缺失值代表该次航班被取消。如果你想比较正常航班和取消航班的计划起飞时间，可以用 `is.na()` 构建一个新的变量。
+```{r}
+nycflights13::flights %>% 
+  mutate(
+    cancelled = is.na(dep_time),
+    sched_hour = sched_dep_time %/% 100,
+    sched_min = sched_dep_time %% 100,
+    sched_dep_time = sched_hour + sched_min / 60
+  ) %>% 
+  ggplot(mapping = aes(sched_dep_time)) + 
+    geom_freqpoly(mapping = aes(colour = cancelled), binwidth = 1/4)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
