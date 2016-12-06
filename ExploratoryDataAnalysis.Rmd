@@ -4,6 +4,31 @@ output: html_notebook
 ---
 
 # 目录
++ 1 介绍
+    + 1.1 探索性数据分析
+    + 1.2 载入包
++ 2 问题
++ 3 变异（Variation）
+    + 3.1 可视化分布
+    + 3.2 典型值（Typical values）
+    + 3.3 异常值（Unusual values）
+    + 3.4 缺失值（Missing values）
++ 4 协变（Covariation）
+    + 4.1 一个类别型变量和一个连续型变量
+        + 4.1.1 核密度图
+        + 4.1.2 箱线图
+        + 4.1.3 扰动点图
+    + 4.2 两个类别型变量
+        + 4.2.1 频数图
+        + 4.2.2 瓦片图
+    + 4.3 两个连续型变量
+        + 4.3.1 散点图
+        + 4.3.2 蜂窝图
+        + 4.3.3 箱线图
++ 5 模式和模型
+  + 5.1 模式
+  + 5.2 模型
++ 6 ggplot2
 
 # 1 介绍
 ## 1.1 探索性数据分析  
@@ -215,7 +240,7 @@ ggplot(data = diamonds2, mapping = aes(x = x, y = y)) +
   geom_point(na.rm = TRUE)
 ```
 
-+ 有时候，缺失值也包含了某种信息。在 `flights` 数据集中，变量 `dep_time` 是缺失值代表该次航班被取消。如果你想比较正常航班和取消航班的计划起飞时间，可以用 `is.na()` 构建一个新的变量。
++ 有时候，缺失值也包含了某种信息。在 `flights` 数据集中，变量 `dep_time` 是缺失值代表该次航班被取消。用 `is.na()` 构建一个新的变量，比较正常航班和取消航班的计划起飞时间。
 ```{r}
 nycflights13::flights %>% 
   mutate(
@@ -228,77 +253,265 @@ nycflights13::flights %>%
     geom_freqpoly(mapping = aes(colour = cancelled), binwidth = 1/4)
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# 4 协变（Covariation）
+　　协变是两个或更多变量取值的共同变化趋势。如何对协变进行可视化，取决于变量的类型。
+
+## 4.1 一个类别型变量和一个连续型变量  
+
+### 4.1.1 核密度图
++ `geom_freqpoly()`  
+
+以类别型变量为分组依据，对不同组别连续型变量的分布进行可视化，当纵坐标为 `count` 时，样本数少的组别可视化效果很差
+```{r}
+ggplot(data = diamonds, mapping = aes(x = price)) + 
+  geom_freqpoly(mapping = aes(colour = cut), binwidth = 500)
+```
+
+每个组别的样本数差别很大
+```{r}
+ggplot(diamonds) + 
+  geom_bar(mapping = aes(x = cut))
+```
+
+建议将纵坐标设定为 `density` ，可视化效果更好
+```{r}
+ggplot(data = diamonds, mapping = aes(x = price, y = ..density..)) + 
+  geom_freqpoly(mapping = aes(colour = cut), binwidth = 500)
+```
+
+### 4.1.2 箱线图
++ `geom_boxplot()`  
+
+箱线图的绘制原理  
+![](https://github.com/blueliberty/R-for-Data-Science/blob/master/Pictures/EDA-boxplot.png?raw=true)
+
+箱线图包含的信息量比核密度图少，但是更加紧凑
+```{r}
+ggplot(data = diamonds, mapping = aes(x = cut, y = price)) +
+  geom_boxplot()
+```
+
+`reorder` 函数可以对分组离散型变量进行排序，此处根据 `hwy` 的中位数对 `class` 进行排序
+```{r}
+ggplot(data = mpg, mapping = aes(x = class, y = hwy)) +
+  geom_boxplot()
+```
+
+```{r}
+ggplot(data = mpg) +
+  geom_boxplot(mapping = aes(x = reorder(class, hwy, FUN = median), y = hwy))
+```
+
+当变量名过长时，可以将坐标轴翻转90度，以获得更好的视觉效果
+```{r}
+ggplot(data = mpg) +
+  geom_boxplot(mapping = aes(x = reorder(class, hwy, FUN = median), y = hwy)) +
+  coord_flip()
+```
+
++ `ggstance` 包中的 `geom_boxploth()`  
+
+作用类似于 `geom_boxplot` + `coord_flip()`
+```{r}
+library(ggstance)
+```
+```{r}
+ggplot(data = mpg) +
+  geom_boxploth(mapping = aes(y = reorder(class, hwy, FUN = median), x = hwy))
+```
+
++ `lvplot` 包中的 `geom_lv()`  
+
+较大数据集中将会有很多异常值，传统的箱线图会绘制所有的异常值点，可视化效果较差。可以考虑使用 `lvplot` 中的 `geom_lv()`
+```{r}
+library(lvplot)
+```
+
+```{r}
+ggplot(data = mpg) +
+  geom_lv(mapping = aes(x = reorder(class, hwy, FUN = median), y = hwy)) +
+  coord_flip()
+```
+
++ `geom_violin()`  
+
+```{r}
+ggplot(data = mpg) +
+  geom_violin(mapping = aes(x = reorder(class, hwy, FUN = median), y = hwy)) +
+  coord_flip()
+```
+
+### 4.1.3 扰动点图
++ `geom_jitter()`  
+
+```{r}
+ggplot(data = mpg) +
+  geom_jitter(mapping = aes(x = reorder(class, hwy, FUN = median), y = hwy)) +
+  coord_flip()
+```
+
++ `ggbeeswarm` 包  
+
+```{r}
+library(ggbeeswarm)
+```
+```{r}
+ggplot(data = mpg) +
+  geom_beeswarm(mapping = aes(x = reorder(class, hwy, FUN = median), y = hwy)) +
+  coord_flip()
+```
+
+## 4.2 两个类别型变量
+计算两个变量不同种组合的样本个数  
+
+### 4.2.1 频数图
++ `geom_count()`
+
+```{r}
+ggplot(data = diamonds) +
+  geom_count(mapping = aes(x = cut, y = color))
+```
+
+```{r}
+diamonds %>% 
+  count(color, cut)
+```
+```
+#> Source: local data frame [35 x 3]
+#> Groups: color [?]
+#> 
+#>   color       cut     n
+#>   <ord>     <ord> <int>
+#> 1     D      Fair   163
+#> 2     D      Good   662
+#> 3     D Very Good  1513
+#> 4     D   Premium  1603
+#> 5     D     Ideal  2834
+#> 6     E      Fair   224
+#> # ... with 29 more rows
+```
+
+### 4.2.2 瓦片图
++ `geom_tile()`  
+
+```{r}
+diamonds %>% 
+  count(color, cut) %>%  
+  ggplot(mapping = aes(x = color, y = cut)) +
+    geom_tile(mapping = aes(fill = n))
+```
+
+## 4.3 两个连续型变量
+### 4.3.1 散点图
++ `geom_point()`  
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = carat, y = price))
+```
+
+当样本数过多时，散点会堆叠在一起，可是通过 `alpha` 参数设置透明度
+```{r}
+ggplot(data = diamonds) + 
+  geom_point(mapping = aes(x = carat, y = price), alpha = 1 / 100)
+```
+
+### 4.3.2 蜂窝图
++ `geom_bin2d()` 和 `geom_hex()`  
+```{r}
+ggplot(data = smaller) +
+  geom_bin2d(mapping = aes(x = carat, y = price))
+```
+
+```{r}
+library(hexbin)
+```
+```{r}
+ggplot(data = smaller) +
+  geom_hex(mapping = aes(x = carat, y = price))
+```
+
+### 4.3.3 箱线图
++ `geom_boxplot()` + `cut_width()`  
+`cut_width()` 等宽度封箱
+```{r}
+ggplot(data = smaller, mapping = aes(x = carat, y = price)) + 
+  geom_boxplot(mapping = aes(group = cut_width(carat, 0.1)))
+```
+
+设置 `varwidth = TRUE` ，箱线图的宽度反映箱中样本个数
+```{r}
+ggplot(data = smaller, mapping = aes(x = carat, y = price)) + 
+  geom_boxplot(mapping = aes(group = cut_width(carat, 0.1)), varwidth = TRUE)
+```
+
++ `geom_boxplot()` + `cut_number()`  
+`cut_number()` 等样本数封箱
+```{r}
+ggplot(data = smaller, mapping = aes(x = carat, y = price)) + 
+  geom_boxplot(mapping = aes(group = cut_number(carat, 20)))
+```
+
+# 5 模式和模型
+## 5.1 模式
+数据中表现出的模式，暗示变量间可能存在联系。如果你发现了某种模式，可以试着问问以下几个问题：  
+
++ 这种模式是否出于偶然？
+
++ 你如何描述这种模式背后蕴藏的联系？
+
++ 这种模式体现出的联系有多强烈？
+
++ 其他变量对这种联系有何种影响？
+
++ 如果仅仅观察数据的某个子分组，这种联系是否会改变？
+
+绘制老忠实泉喷发间歇时间（`waiting`）与喷发时间（`eruptions`）的散点图，可以发现喷发间歇时间越长，喷发时间越长，并且图形中能够发现两个明显的聚类。
+```{r}
+ggplot(data = faithful) + 
+  geom_point(mapping = aes(x = eruptions, y = waiting))
+```
+
+模式能够表现出多个变量之间的协变。如果说变异代表不确定性，那么协变会减少不确定性。如果两个变量同步变化，就可以用一个变量来预测另一个变量。如果两个变量存在因果关系，就可以用一个变量来控制另一个变量。
+
+## 5.2 模型
+模型可以从数据中提炼模式。
+```{r}
+library(modelr)
+```
+
+```{r}
+mod <- lm(log(price) ~ log(carat), data = diamonds)
+
+diamonds2 <- diamonds %>% 
+  add_residuals(mod) %>% 
+  mutate(resid = exp(resid))
+
+ggplot(data = diamonds2) + 
+  geom_point(mapping = aes(x = carat, y = resid))
+```
+
+`resid` 代表价格 `price` 中剔除了克拉数 `carat` 的影响，可以看出，切工更好的钻石价格更高
+```{r}
+ggplot(data = diamonds2) + 
+  geom_boxplot(mapping = aes(x = cut, y = resid))
+```
+
+# 6 `ggplot2`
++ 函数中的前两个参数 `data` 和 `mapping` ，参数名可以省略
+```{r}
+ggplot(data = faithful, mapping = aes(x = eruptions)) + 
+  geom_freqpoly(binwidth = 0.25)
+```
+
+```{r}
+ggplot(faithful, aes(eruptions)) + 
+  geom_freqpoly(binwidth = 0.25)
+```
+
++ `dplyr` 和 `ggplot2` 可以联合使用，注意将管道操作符 `%>%` 转换为 `+`
+```{r}
+diamonds %>% 
+  count(cut, clarity) %>% 
+  ggplot(aes(clarity, cut, fill = n)) + 
+    geom_tile()
+```
