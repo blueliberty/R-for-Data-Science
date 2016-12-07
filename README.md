@@ -12,7 +12,7 @@
 	+ 数据可视化
 	+ 数据转换
 	+ 探索性数据分析
-+ **Wrangle**
++ **Wrangle**  
 ![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-wrangle.png)
 	+ Tibbles
 	+ 数据导入
