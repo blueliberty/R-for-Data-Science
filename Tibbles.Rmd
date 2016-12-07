@@ -1,0 +1,198 @@
+---
+title: "Tibbles"
+output: html_notebook
+---
+# 目录
++ 1 介绍
+    + 1.1 载入包
++ 2 创建 `tibble`
+    + 2.1 用 `as_tibble()` 将 `data.frame` 转化为 `tibble`
+    + 2.2 用 `tibble()` 创建新的 `tibble`
+    + 2.3 用`tribble()` 从输入的代码中创建 `tibble`
+    + 2.4 `tibble` 和 `data.frame` 的不同之处
++ 3 `Tibbles` vs. `data.frame`
+    + 3.1 Printing
+    + 3.2 Subsetting
++ 4 与其他函数的兼容
+
+# 1 介绍
+相较于 `R` 中传统的 `data.frame` ，`tibble` 拥有一些新的特性，能够让你更加方便地利用 `R` 进行数据科学工作。你可以使用以下命令来获取 `tibble` 的使用介绍。
+```{r}
+vignette("tibble")
+```
+
+## 1.1 载入包
+```{r}
+library(tidyverse)
+```
+
+# 2 创建 `tibble`
+## 2.1 用 `as_tibble()` 将 `data.frame` 转化为 `tibble`  
+
+```{r}
+as_tibble(iris)
+```
+```
+#> # A tibble: 150 × 5
+#>   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+#>          <dbl>       <dbl>        <dbl>       <dbl>  <fctr>
+#> 1          5.1         3.5          1.4         0.2  setosa
+#> 2          4.9         3.0          1.4         0.2  setosa
+#> 3          4.7         3.2          1.3         0.2  setosa
+#> 4          4.6         3.1          1.5         0.2  setosa
+#> 5          5.0         3.6          1.4         0.2  setosa
+#> 6          5.4         3.9          1.7         0.4  setosa
+#> # ... with 144 more rows
+```
+
+## 2.2 用 `tibble()` 创建新的 `tibble`  
+
+`tibble` 可以接受长度为1的标量，并且可以引用同一语句中刚刚创建的变量
+```{r}
+tibble(
+  x = 1:5, 
+  y = 1, 
+  z = x ^ 2 + y
+)
+```
+```
+#> # A tibble: 5 × 3
+#>       x     y     z
+#>   <int> <dbl> <dbl>
+#> 1     1     1     2
+#> 2     2     1     5
+#> 3     3     1    10
+#> 4     4     1    17
+#> 5     5     1    26
+```
+
+## 2.3 用`tribble()` 从输入的代码中创建 `tibble`  
+变量名用 `~` 开头，值用 `,` 隔开，建议添加一行注释（用 `#` 开头）以区分表头
+```{r}
+tribble(
+  ~x, ~y, ~z,
+  #--|--|----
+  "a", 2, 3.6,
+  "b", 1, 8.5
+)
+```
+```
+#> # A tibble: 2 × 3
+#>       x     y     z
+#>   <chr> <dbl> <dbl>
+#> 1     a     2   3.6
+#> 2     b     1   8.5
+```
+
+## 2.4 `tibble` 和 `data.frame` 的不同之处  
+
++ `tibble` 对数据框的变动比 `data.frame` 少很多
+
+`tibble` 不会自动改变输入变量的数据类型（不会将字符串转化为因子），不会自动改变变量名，不会自动创建行名
+
++ `tibble` 中的列名  
+
+`tibble` 可以使用 `R` 中无效的变量名作为列名，比如非字母开头、包含不正常的字符（比如空格），只需要在创建和使用时，将变量名置于反引号 `` 中间
+
+```{r}
+tb <- tibble(
+  `:)` = "smile", 
+  ` ` = "space",
+  `2000` = "number"
+)
+tb
+```
+```
+#> # A tibble: 1 × 3
+#>    `:)`   ` ` `2000`
+#>   <chr> <chr>  <chr>
+#> 1 smile space number
+```
+
+# 3 `Tibbles` vs. `data.frame`
+## 3.1 Printing
+`tibbles` 只显示开头的10行，并且会调整显示的列数以适应屏幕大小，还会报告每个变量的数据类型
+```{r}
+tibble(
+  a = lubridate::now() + runif(1e3) * 86400,
+  b = lubridate::today() + runif(1e3) * 30,
+  c = 1:1e3,
+  d = runif(1e3),
+  e = sample(letters, 1e3, replace = TRUE)
+)
+```
+```
+#> # A tibble: 1,000 × 5
+#>                     a          b     c     d     e
+#>                <dttm>     <date> <int> <dbl> <chr>
+#> 1 2016-12-02 20:12:04 2016-12-09     1 0.368     h
+#> 2 2016-12-03 14:17:13 2016-12-14     2 0.612     n
+#> 3 2016-12-03 08:40:52 2016-12-24     3 0.415     l
+#> 4 2016-12-02 22:02:10 2016-12-23     4 0.212     x
+#> 5 2016-12-02 18:26:26 2016-12-20     5 0.733     a
+#> 6 2016-12-03 05:27:23 2016-12-16     6 0.460     v
+#> # ... with 994 more rows
+```
+
+以下3种方法可以控制 `tibbles` 显示的行、列数  
+
++ 1 动态设定 `print()` 的参数 `n` 和 `width`  
+
+```
+nycflights13::flights %>% 
+  print(n = 10, width = Inf)
+```
+
++ 2 用 `options()` 改变 `print()` 的默认行为  
+    + 2.1 `options(tibble.print_max = n, tibble.print_min = m)`  
+    如果 `tibbles` 超过 `m` 行，则只显示 `n` 行
+    + 2.2 `options(dplyr.print_min = Inf)`  
+    始终显示所有行
+    + 2.3 `options(tibble.width = Inf)`  
+    始终显示所有列  
+
++ 3 用 `RStudio` 的内置函数 `View()` 显示完整的数据集  
+尤其适用于对数据集进行一连串转换后查看结果  
+
+```
+nycflights13::flights %>% 
+  View()
+```
+
+## 3.2 Subsetting
+`tibble` 中有两种方式可以提取某个变量  
+```{r}
+df <- tibble(
+  x = runif(5),
+  y = rnorm(5)
+)
+```
++ 1 `$` 可以依据变量名提取变量  
+
+```{r}
+df$x
+```
++ 2 `[[` 可以依据变量名和位置提取变量
+```{r}
+df[["x"]]
+```
+```{r}
+df[[1]]
+```
+
++ 3 与管道操作符 `%>%` 合用，需要使用占位符 `.`
+```{r}
+df %>% .$x
+```
+
+```{r}
+df %>% .[["x"]]
+```
+
+# 4 与其他函数的兼容
+　　在 `tibble` 中，我们很少使用 `[` ，转而建议使用代码更加清晰的 `dplyr::filter()` 和 `dplyr::select()` 来筛选子集。  
+　　在 `R` 中 `[` 有时返回 `data.frame` ，有时返回 `vector` ，但在 `tibble` 中，`[` 总是返回另一个 `tibble` 。  
+　　但这也导致 `tibble` 有时会和一些函数不兼容，此时可以使用 `as.data.frame` 将 `tibble` 转换为 `data.frame` 。
+```{r}
+class(as.data.frame(tb))
+```
