@@ -2,6 +2,11 @@
 title: "导论"
 output: html_notebook
 ---
+# 目录
++ 1 R语言在数据科学领域的工作流程
++ 2 需要使用的包（packages）
++ 3 `tidyverse` 包
++ 4 线上资源
 
 # 1 R语言在数据科学领域的工作流程
 + 1 数据**导入（import）**  
@@ -29,8 +34,23 @@ output: html_notebook
 
 ![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science.png)
 
-# 2 需要使用的包（package）
+# 2 需要使用的包（packages）
 ```
 install.packages("tidyverse")
 install.packages(c("nycflights13", "gapminder", "Lahman"))
 ```
+
+# 3 `tidyverse` 包
+```{r}
+library(devtools)
+```
+```{r}
+devtools::session_info(c("tidyverse"))
+```
+
+# 4 线上资源
+An online version of this book is available at http://r4ds.had.co.nz.  
+The source of the book is available at https://github.com/hadley/r4ds. 
+
+
+
