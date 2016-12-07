@@ -15,7 +15,7 @@ output: html_notebook
     + 3.4 缺失值（Missing values）
 + 4 协变（Covariation）
     + 4.1 一个类别型变量和一个连续型变量
-        + 4.1.1 核密度图
+        + 4.1.1 频数多边形图与核密度图
         + 4.1.2 箱线图
         + 4.1.3 扰动点图
     + 4.2 两个类别型变量
@@ -114,7 +114,7 @@ ggplot(data = diamonds, mapping = aes(x = carat)) +
   geom_histogram(binwidth = 0.1)
 ```
 
-+ 使用核密度图 `geom_freqpoly` 在同一幅图中观察多个变量的分布
++ 使用频数多边形图 `geom_freqpoly` 在同一幅图中观察多个变量的分布
 ```{r}
 ggplot(data = smaller, mapping = aes(x = carat, colour = cut)) +
   geom_freqpoly(binwidth = 0.1)
@@ -240,7 +240,7 @@ ggplot(data = diamonds2, mapping = aes(x = x, y = y)) +
   geom_point(na.rm = TRUE)
 ```
 
-+ 有时候，缺失值也包含了某种信息。在 `flights` 数据集中，变量 `dep_time` 是缺失值代表该次航班被取消。用 `is.na()` 构建一个新的变量，比较正常航班和取消航班的计划起飞时间。
++ 3 有时候，缺失值也包含了某种信息。在 `flights` 数据集中，变量 `dep_time` 是缺失值代表该次航班被取消。用 `is.na()` 构建一个新的变量，比较正常航班和取消航班的计划起飞时间。
 ```{r}
 nycflights13::flights %>% 
   mutate(
@@ -258,10 +258,10 @@ nycflights13::flights %>%
 
 ## 4.1 一个类别型变量和一个连续型变量  
 
-### 4.1.1 核密度图
+### 4.1.1 频数多边形图与核密度图
 + `geom_freqpoly()`  
 
-以类别型变量为分组依据，对不同组别连续型变量的分布进行可视化，当纵坐标为 `count` 时，样本数少的组别可视化效果很差
+以类别型变量为分组依据，对不同组别连续型变量的分布进行可视化，当纵坐标为 `count` 时，绘制频数多边形图，样本数少的组别可视化效果很差
 ```{r}
 ggplot(data = diamonds, mapping = aes(x = price)) + 
   geom_freqpoly(mapping = aes(colour = cut), binwidth = 500)
@@ -273,7 +273,7 @@ ggplot(diamonds) +
   geom_bar(mapping = aes(x = cut))
 ```
 
-建议将纵坐标设定为 `density` ，可视化效果更好
+建议将纵坐标设定为 `density` ，绘制核密度图，可视化效果更好
 ```{r}
 ggplot(data = diamonds, mapping = aes(x = price, y = ..density..)) + 
   geom_freqpoly(mapping = aes(colour = cut), binwidth = 500)
