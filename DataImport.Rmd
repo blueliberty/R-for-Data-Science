@@ -1,0 +1,708 @@
+---
+title: "数据导入"
+output: html_notebook
+---
+
+# 目录
++ 1 前提准备
++ 2 `readr` 中的文件读取函数
+    + 2.1 `read_csv()`
+    + 2.2 `read_csv()` 与 `read.csv()` 比较
++ 3 解析一个向量（Parsing a vector）
+    + 3.1 数字
+    + 3.2 字符串
+    + 3.3 因子
+    + 3.4 日期和时间
++ 4 解析一个文件（Parsing a file）
+    + 4.1 判断数据类型
+    + 4.2 数据类型判断错误及解决方法
+    + 4.3 其他解决解析错误问题的方法
++ 5 写出文件
+    + 5.1 写出文件的函数
+    + 5.2 读写过程中丢失数据类型
++ 6 其他类型的文件
+
+# 1 前提准备
+```{r}
+library(tidyverse)
+```
+
+# 2 `readr` 中的文件读取函数
++ `read_csv()` 读取逗号 `,` 分隔的文件
+`read_csv2()` 读取分号 `;` 分隔的文件
+`read_tsv()` 读取制表符 `tab` 分隔的文件
+`read_delim()` 读取任意分隔符分隔的文件
+
+
++ `read_fwf()` 读取定宽的文件，可以通过 `fwf_widths()` 设定宽度或通过 `fwf_positions()` 设定位置
+`read_table()` 读取空格分隔的定宽文件
+
++ `read_log()` reads Apache style log files. (But also check out [webreadr](https://github.com/Ironholds/webreadr) which is built on top of `read_log()` and provides many more helpful tools.)
+
+以上函数的使用语法相似，因此，下文以 `read_csv()` 为例进行介绍。
+
+## 2.1 `read_csv()`
++ 读取文件  
+
+`read_csv()` 中第一个参数是文件路径
+```{r}
+heights <- read_csv("data/heights.csv")
+```
+运行 `read_csv()` 后，会显示数据集中的变量名和数据类型
+
++ 读取代码  
+
+还可以用 `read_csv()` 读取代码输入的表格
+```{r}
+read_csv("a,b,c
+1,2,3
+4,5,6")
+```
+```
+#> # A tibble: 2 × 3
+#>       a     b     c
+#>   <int> <int> <int>
+#> 1     1     2     3
+#> 2     4     5     6
+```
+
++ 表头  
+
+`read_csv()` 默认第一行为表头，可以通过设置 `skip = n` 、 `comment = "#"` 和 `col_names = FALSE`改变这一行为  
+
+`skip = n` ：跳过开头的 `n` 行  
+    
+```{r}
+read_csv("The first line of metadata
+  The second line of metadata
+  x,y,z
+  1,2,3", skip = 2)
+```
+```
+#> # A tibble: 1 × 3
+#>       x     y     z
+#>   <int> <int> <int>
+#> 1     1     2     3
+```
+
+`comment = "#"` ：跳过所有以 `#` 开头的行
+    
+```{r}
+read_csv("# A comment I want to skip
+  x,y,z
+  1,2,3", comment = "#")
+```
+
+```
+#> # A tibble: 1 × 3
+#>       x     y     z
+#>   <int> <int> <int>
+#> 1     1     2     3
+```
+
+`col_names = FALSE` ：不将第一行视为表头，并以 `X1` 到 `Xn` 的顺序为变量命名
+```{r}
+read_csv("1,2,3\n4,5,6", col_names = FALSE)
+```
+```
+#> # A tibble: 2 × 3
+#>      X1    X2    X3
+#>   <int> <int> <int>
+#> 1     1     2     3
+#> 2     4     5     6
+```
+此处的 `"\n"` 是换行符
+
+可以用 `col_names` 指定列名
+```{r}
+read_csv("1,2,3\n4,5,6", col_names = c("x", "y", "z"))
+```
+```
+#> # A tibble: 2 × 3
+#>       x     y     z
+#>   <int> <int> <int>
+#> 1     1     2     3
+#> 2     4     5     6
+```
+
++ `na` 参数指定缺失值
+```{r}
+read_csv("a,b,c\n1,2,.", na = ".")
+```
+```
+#> # A tibble: 1 × 3
+#>       a     b     c
+#>   <int> <int> <chr>
+#> 1     1     2  <NA>
+```
+
+## 2.2 `read_csv()` 与 `read.csv()` 比较
++ `read_csv()` 的文件读取速度是 `read.csv()` 的10倍。还可以使用 `data.table::fread()` ，该函数与 `tidyverse` 兼容性一般，但是文件读取速度更快。
+
++ `read_csv()` 将数据存储为 `tibble` 格式。与 `data.frame` 相比， `tibble` 不会将字符串转化为因子、生成行名、改变列名，可以避免很多麻烦。
+
++ `read_csv()` 的代码可移植性更高。 `R` 中原生的函数，往往会继承操作系统、环境变量的行为特性，代码可移植性较差。
+
+
+# 3 解析一个向量（Parsing a vector）
+`readr` 中的文件读取函数 `read_*()` 是建立在向量解析函数 `parse_*()` 之上的。 `parse_*()` 函数，可以读取字符串向量，同时输出特定数据类型的向量（布尔型、整型、日期型等），示例如下：
+```{r}
+str(parse_logical(c("TRUE", "FALSE", "NA")))
+```
+```{r}
+str(parse_integer(c("1", "2", "3")))
+```
+```{r}
+str(parse_date(c("2010-01-01", "1979-10-14")))
+```
+
+`na` 参数可以指定缺失值
+```{r}
+parse_integer(c("1", "231", ".", "456"), na = ".")
+```
+
+解析失败时，会产生 warning
+```{r}
+x <- parse_integer(c("123", "345", "abc", "123.45"))
+```
+
+解析失败的元素会以缺失值替代
+```
+x
+```
+```
+#> [1] 123 345  NA  NA
+#> attr(,"problems")
+#> # A tibble: 2 × 4
+#>     row   col               expected actual
+#>   <int> <int>                  <chr>  <chr>
+#> 1     3    NA             an integer    abc
+#> 2     4    NA no trailing characters    .45
+```
+
+如果解析失败的元素过多，使用 `problem()` 函数可以得到解析失败元素的详情，用 `tibble` 形式返回，方便使用 `dplyr` 进行处理
+```{r}
+problems(x)
+```
+```
+#> # A tibble: 2 × 4
+#>     row   col               expected actual
+#>   <int> <int>                  <chr>  <chr>
+#> 1     3    NA             an integer    abc
+#> 2     4    NA no trailing characters    .45
+```
+
+`readr` 一共有8种 `parse_*()` 函数：  
+
++ `parse_logical()` 和 `parse_integer()` 分别用于解析布尔值和整数。
+
++ `parse_double()` 和 `parse_number()` 用于解析数字， `parse_number()` 的使用更为灵活。
+
++ `parse_character()` 用于解析字符串，使用时需要注意字符编码问题。
+
++ `parse_factor()` 用于解析因子，因子是 `R` 中用于表示类别变量的数据类型。
+
++ `parse_datetime()` 、 `parse_date()` 和 `parse_time()` 用于解析日期和时间。
+
+## 3.1 数字
+在解析数字的时候，可能会产生以下问题：  
+
++ 不同国家用于分隔整数和小数的符号不同，有的国家使用 `.` ，有的国家使用 `,` 。
+
++ 数字的周围可能有其他字符，例如 `$1000` 或 `10%` 。
+
++ 数字中可能存在千位分隔符，例如 `1,000,000` ，且不同国家使用不同的千位分隔符。
+
+`locale` 参数可以设定 `parse_*()` 解析行为的选项  
+
++ `decimal_mark` 可以设定小数点的形式
+```{r}
+parse_double("1.23")
+```
+```{r}
+parse_double("1,23", locale = locale(decimal_mark = ","))
+```
++ `parse_number()` 会忽略数字前后的其他字符
+```{r}
+parse_number("$100")
+```
+```{r}
+parse_number("20%")
+```
+```{r}
+parse_number("It cost $123.45")
+```
++ `rouping_mark` 可以设定千位分隔符的形式
+```{r}
+parse_number("$123,456,789")
+```
+```{r}
+parse_number("123.456.789", locale = locale(grouping_mark = "."))
+```
+```{r}
+parse_number("123'456'789", locale = locale(grouping_mark = "'"))
+```
+
+## 3.2 字符串
+
++ `charToRaw()` 将英文字符串转化为十六进制的数值，即 `ASCII` 编码
+```{r}
+charToRaw("Hadley")
+```
+
++ `readr` 默认使用 `UTF-8` 编码。当字符串非 `UTF-8` 编码时，可能会出现乱码。此时需要为 `parse_character()` 设定编码方式
+```{r}
+x1 <- "El Ni\xf1o was particularly bad this year"
+
+x1
+```
+```{r}
+x2 <- "\x82\xb1\x82\xf1\x82\xc9\x82\xbf\x82\xcd"
+
+x2
+```
+```{r}
+parse_character(x1, locale = locale(encoding = "Latin1"))
+```
+```{r}
+parse_character(x2, locale = locale(encoding = "Shift-JIS"))
+```
+
++ 对于编码方式未知的情况，可以使用 `guess_encoding()` 猜测编码方式，在文本较长的时候估计更为准确。
+```{r}
+guess_encoding(charToRaw(x1))
+```
+```
+#>     encoding confidence
+#> 1 ISO-8859-1       0.46
+#> 2 ISO-8859-9       0.23
+```
+```{r}
+guess_encoding(charToRaw(x2))
+```
+```
+#>   encoding confidence
+#> 1   KOI8-R       0.42
+```
+`guess_encoding()` 的第一个参数可以是文件路径，也可以是一个向量（如上例所示，用于该字符串已经存在于 `R` 中的情况）
+
+对于编码方式的更多介绍，参见 http://kunststube.net/encoding/
+
+## 3.3 因子
+`parse_factor()` 必须设置 `levels` 参数
+```{r}
+fruit <- c("apple", "banana")
+parse_factor(c("apple", "banana"), levels = fruit)
+```
+
+如果被解析的向量中有 `levels` 以外的元素，会产生一个 warning
+```
+fruit <- c("apple", "banana")
+parse_factor(c("apple", "banana", "bananana"), levels = fruit)
+```
+```
+#> Warning: 1 parsing failure.
+#> row col           expected   actual
+#>   3  -- value in level set bananana
+#> [1] apple  banana <NA>  
+#> attr(,"problems")
+#> # A tibble: 1 × 4
+#>     row   col           expected   actual
+#>   <int> <int>              <chr>    <chr>
+#> 1     3    NA value in level set bananana
+#> Levels: apple banana
+```
+如果因子的水平过多，可以先用 `parse_character()` 将向量作为字符串解析，再将其处理为因子。
+
+## 3.4 日期和时间
++ `parse_datetime()` 解析符合ISO8601标准的日期和时间
+```{r}
+parse_datetime("2010-10-01T2010")
+```
+如果时间缺失，则默认设定为午夜
+```{r}
+parse_datetime("20101010")
+```
+
++ `parse_date()` 解析日期，年月日中间用 `-` 或 `/` 隔开
+```{r}
+parse_date("2010-10-01")
+```
+
++ `parse_time()` 解析时间（格式为 `小时:分钟` ，可以加上 `:秒` 和 `am / pm` ）
+由于 `R` 中没有很好的处理时间的包，所以需要载入 `hms` 包
+```{r}
+library(hms)
+```
+```{r}
+parse_time("01:10 am")
+```
+```{r}
+parse_time("20:10:01")
+```
+
+也可以自行设定日期/时间格式：  
+
++ 年
+    + `%Y`: (4 digits).
+    + `%y`: (2 digits); 00-69 -> 2000-2069, 70-99 -> 1970-1999.
++ 月
+    + `%m`: (2 digits).
+    + `%b`: (abbreviated name, like “Jan”).
+    + `%B`: (full name, “January”).
++ 日
+    + `%d`: (2 digits).
+    + `%e`: (optional leading space).
++ 时间
+    + `%H`: 0-23 hour.
+    + `%I`: 0-12, must be used with %p.
+    + `%p`: AM/PM indicator.
+    + `%M`: minutes.
+    + `%S`: integer seconds.
+    + `%OS`: real seconds.
+    + `%Z`: Time zone (as name, e.g. America/Chicago).
+    + `%z`: (as offset from UTC, e.g. +0800).
++ Non-digits
+    + `%.`: skips one non-digit character.
+    + `%*`: skips any number of non-digits.
+
+在解析日期和时间时，建议多尝试几次：
+```{r}
+parse_date("01/02/15", "%m/%d/%y")
+```
+```{r}
+parse_date("01/02/15", "%d/%m/%y")
+```
+```{r}
+parse_date("01/02/15", "%y/%m/%d")
+```
+如果用 `%b` 或 `%B` 与非英文月份名合用，你需要对 `locale()` 设置 `lang` 参数。可以在 `date_names_langs()` 中查看内置语言的列表。如果你使用的语言没有被包含在内，可以使用 `date_names()` 创建你自己的月份名。
+
+```{r}
+date_names_langs()
+```
+```{r}
+parse_date("1 janvier 2015", "%d %B %Y", locale = locale("fr"))
+```
+
+# 4 解析一个文件（Parsing a file）
+
+解析一个文件时，会遇到两个问题：  
+
++ 1 `readr` 如何自动判断每一列的数据类型。
+
++ 2 How to override the default specification.
+
+## 4.1 判断数据类型
+
+`readr` 采用启发式方法来判断每列的数据类型：读取前1000行来判断每列的数据类型。 `guess_parser()` 可以判断向量的数据类型
+```{r}
+guess_parser("2010-10-01")
+```
+```{r}
+guess_parser("15:01")
+```
+```{r}
+guess_parser(c("TRUE", "FALSE"))
+```
+```{r}
+guess_parser(c("1", "5", "9"))
+```
+```{r}
+guess_parser(c("12,352,561"))
+```
+
+`parse_guess()` 会自动采用 `guess_parser()` 的判断来解析向量
+```{r}
+str(parse_guess("2010-10-10"))
+```
+
+启发式方法按照以下顺序尝试数据类型：  
+
++ logical: contains only “F”, “T”, “FALSE”, or “TRUE”.
++ integer: contains only numeric characters (and -).
++ double: contains only valid doubles (including numbers like 4.5e-5).
++ number: contains valid doubles with the grouping mark inside.
++ time: matches the default time_format.
++ date: matches the default date_format.
++ date-time: any ISO8601 date.  
+
+如果以上数据类型都不匹配，则向量仍然被当做字符串向量。
+
+## 4.2 数据类型判断错误及解决方法
+以上自动判断数据类型的方法可能存在两个问题：  
+
++ 1 前1000行的数据类型可能是特例，导致 `readr` 判断错误。例如，一个数据类型为双精度的列，前1000行可能只有整数。
+
++ 2 数据中可能存在很多缺失值。如果前1000行都是 `NA` ， `readr` 会将该列视为字符串向量。
+
+`readr` 中有一个包含以上两个问题的示例CSV文件：
+```{r}
+challenge <- read_csv(readr_example("challenge.csv"))
+```
+warning 中包含两个信息：1.通过前1000行判断的数据类型；2.前5个解析错误。通过 `problem()` 更深入地展示解析错误。
+```{r}
+problems(challenge)
+```
+```
+#> # A tibble: 1,000 × 4
+#>     row   col               expected             actual
+#>   <int> <chr>                  <chr>              <chr>
+#> 1  1001     x no trailing characters .23837975086644292
+#> 2  1002     x no trailing characters .41167997173033655
+#> 3  1003     x no trailing characters  .7460716762579978
+#> 4  1004     x no trailing characters   .723450553836301
+#> 5  1005     x no trailing characters   .614524137461558
+#> 6  1006     x no trailing characters   .473980569280684
+#> # ... with 994 more rows
+```
+
+`read_csv` 对于该CSV文件的默认解析行为如下：
+```{r}
+challenge <- read_csv(
+  readr_example("challenge.csv"), 
+  col_types = cols(
+    x = col_integer(),
+    y = col_character()
+  )
+)
+```
+
+`x` 列中包含小数，所以需要对 `x` 列使用双精度解析器：
+```{r}
+challenge <- read_csv(
+  readr_example("challenge.csv"), 
+  col_types = cols(
+    x = col_double(),
+    y = col_character()
+  )
+)
+```
+
+ `y` 列中包含日期，所以需要对 `y` 列使用日期解析器：
+```{r}
+tail(challenge)
+```
+```
+#> # A tibble: 6 × 2
+#>       x          y
+#>   <dbl>      <chr>
+#> 1 0.805 2019-11-21
+#> 2 0.164 2018-03-29
+#> 3 0.472 2014-08-04
+#> 4 0.718 2015-08-16
+#> 5 0.270 2020-02-04
+#> 6 0.608 2019-01-06
+```
+```{r}
+challenge <- read_csv(
+  readr_example("challenge.csv"), 
+  col_types = cols(
+    x = col_double(),
+    y = col_date()
+  )
+)
+```
+```{r}
+tail(challenge)
+```
+```
+#> # A tibble: 6 × 2
+#>       x          y
+#>   <dbl>     <date>
+#> 1 0.805 2019-11-21
+#> 2 0.164 2018-03-29
+#> 3 0.472 2014-08-04
+#> 4 0.718 2015-08-16
+#> 5 0.270 2020-02-04
+#> 6 0.608 2019-01-06
+```
+
+每一个 `parse_xyz()` 函数都对应一个 `col_xyz()` 函数。 `parse_xyz()` 函数用于解析已经载入 `R` 中的字符串向量， `col_xyz()` 函数用于告诉 `readr` 如何解析文件。
+
+建议在每次解析文件时都使用 `col_types` ，可以确保数据载入脚本的一致性和可移植性。还可以使用 `stop_for_problems()` ，它会在产生解析错误时报错并中止程序运行。
+
+## 4.3 其他解决解析错误问题的方法
++ 1 使用更多的行来判断数据类型
+```{r}
+challenge2 <- read_csv(readr_example("challenge.csv"), guess_max = 1001)
+```
+```{r}
+challenge2
+```
+```
+#> # A tibble: 2,000 × 2
+#>       x      y
+#>   <dbl> <date>
+#> 1   404   <NA>
+#> 2  4172   <NA>
+#> 3  3004   <NA>
+#> 4   787   <NA>
+#> 5    37   <NA>
+#> 6  2332   <NA>
+#> # ... with 1,994 more rows
+```
++ 2 将所有列视为字符串向量来解析
+```{r}
+challenge2 <- read_csv(readr_example("challenge.csv"), 
+  col_types = cols(.default = col_character())
+)
+```
+
+
+```{r}
+df <- tribble(
+  ~x,  ~y,
+  "1", "1.21",
+  "2", "2.32",
+  "3", "4.56"
+)
+
+df
+```
+```
+#> # A tibble: 3 × 2
+#>       x     y
+#>   <chr> <chr>
+#> 1     1  1.21
+#> 2     2  2.32
+#> 3     3  4.56
+```
+
+该方法可以与 `type_convert()` 函数合用，来解析数据框中的字符串变量。
+```
+type_convert(df)
+```
+```
+#> Parsed with column specification:
+#> cols(
+#>   x = col_integer(),
+#>   y = col_double()
+#> )
+#> # A tibble: 3 × 2
+#>       x     y
+#>   <int> <dbl>
+#> 1     1  1.21
+#> 2     2  2.32
+#> 3     3  4.56
+```
+
++ 3在解析一个非常大的文件时，可以将 `n_max` 参数设定为10000或100000。可以更快地找出数据类型判断错误的问题。
+
++ 4 如果解析错误的问题非常严重，可以将文件视为字符串向量，用 `read_lines()` 逐行或用 `read_file()` 整体读入文件，再使用其他字符串函数进行处理。
+
+# 5 写出文件
+## 5.1 写出文件的函数
+`readr` 有两个写出文件的函数 `write_csv()` 和 `write_tsv()` ，还可以使用 `write_excel_csv()` 函数可以将CSV文件转换为Excel文件。遵循以下2个原则，可以使写出的文件能够正常读入：  
+
++ 1 使用 `UTF-8` 对字符串进行编码
+
++ 2 使用ISO8601标准保存日期和时间
+
+通过 `na` 参数设定文件中如何表示缺失值，通过 `append` 参数设定是否覆盖已有文件。
+
+```
+write_csv(challenge, "challenge.csv")
+```
+
+## 5.2 读写过程中丢失数据类型
+以下文件写出、读入的过程，丢失了变量 `y` 的数据类型
+```{r}
+challenge
+```
+```
+#> # A tibble: 2,000 × 2
+#>       x      y
+#>   <dbl> <date>
+#> 1   404   <NA>
+#> 2  4172   <NA>
+#> 3  3004   <NA>
+#> 4   787   <NA>
+#> 5    37   <NA>
+#> 6  2332   <NA>
+#> # ... with 1,994 more rows
+```
+```
+write_csv(challenge, "challenge-2.csv")
+```
+```
+read_csv("challenge-2.csv")
+```
+```
+#> Parsed with column specification:
+#> cols(
+#>   x = col_double(),
+#>   y = col_character()
+#> )
+#> # A tibble: 2,000 × 2
+#>       x     y
+#>   <dbl> <chr>
+#> 1   404  <NA>
+#> 2  4172  <NA>
+#> 3  3004  <NA>
+#> 4   787  <NA>
+#> 5    37  <NA>
+#> 6  2332  <NA>
+#> # ... with 1,994 more rows
+```
+有以下3种解决办法：  
+
++ 1 在每次读取文件时指定变量的数据类型。
+
++ 2 使用 `write_rds()` 和 `read_rds()` 函数，它们是对 `R` 中 `readRDS()` 和 `saveRDS()` 函数的封装，会将数据存储为二进制格式 `RDS` 。
+```
+write_rds(challenge, "challenge.rds")
+```
+```
+read_rds("challenge.rds")
+```
+```
+#> # A tibble: 2,000 × 2
+#>       x      y
+#>   <dbl> <date>
+#> 1   404   <NA>
+#> 2  4172   <NA>
+#> 3  3004   <NA>
+#> 4   787   <NA>
+#> 5    37   <NA>
+#> 6  2332   <NA>
+#> # ... with 1,994 more rows
+```
+
++ 3 `feather` 包能够将文件快速存储为二进制格式，并且能够跨语言使用
+```{r}
+library(feather)
+```
+```
+write_feather(challenge, "challenge.feather")
+```
+```
+read_feather("challenge.feather")
+```
+```
+#> # A tibble: 2,000 x 2
+#>       x      y
+#>   <dbl> <date>
+#> 1   404   <NA>
+#> 2  4172   <NA>
+#> 3  3004   <NA>
+#> 4   787   <NA>
+#> 5    37   <NA>
+#> 6  2332   <NA>
+#> # ... with 1,994 more rows
+```
+
+`RDS` supports list-columns; feather currently does not.
+
+# 6 其他类型的文件
+`tidyverse` 中的以下包可以向 `R` 中读入其他类型的文件：  
+
++ **`haven`** reads SPSS, Stata, and SAS files.
+
++ **`readxl`** reads excel files (both `.xls` and `.xlsx`).
+
++ **`DBI`**, along with a database specific backend (e.g. **`RMySQL`**, **`RSQLite`**, **`RPostgreSQL`** etc) allows you to run SQL queries against a database and return a data frame.
+
+For hierarchical data: use **`jsonlite`** (by Jeroen Ooms) for json, and **`xml2`** for XML. Jenny Bryan has some excellent worked examples at https://jennybc.github.io/purrr-tutorial/examples.html.
+
+For other file types, try the [R data import/export manual](https://cran.r-project.org/doc/manuals/r-release/R-data.html) and the [rio](https://github.com/leeper/rio) package.
