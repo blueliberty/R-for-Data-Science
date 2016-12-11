@@ -17,7 +17,7 @@
 	+ Tibbles
 	+ 数据导入
 	+ 数据规整
-	+ Relational data
+	+ 联结
 	+ 字符串
 	+ 因子
 	+ 日期和时间
