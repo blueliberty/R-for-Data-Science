@@ -1,0 +1,754 @@
+---
+title: "数据规整"
+output: html_notebook
+---
+
+# 目录
++ 1 前提准备
++ 2 规整的数据
++ 3 Spreading and gathering
+    + 3.1 Gathering
+    + 3.2 Spreading
++ 4 Separating and uniting
+    + 4.1 Separate
+    + 4.2 Unite
++ 5 缺失值
++ 6 案例学习
++ 7 非规整数据
+
+# 1 前提准备
+```{r}
+library(tidyverse)
+```
+
+# 2 规整的数据
+数据可以有很多种表现形式。以下四个数据集都包含了4个变量：`country`, `year`, `population`, `cases` ，但是每个数据集的排列组织方式都不同。
+```{r}
+table1
+```
+```
+#> # A tibble: 6 × 4
+#>       country  year  cases population
+#>         <chr> <int>  <int>      <int>
+#> 1 Afghanistan  1999    745   19987071
+#> 2 Afghanistan  2000   2666   20595360
+#> 3      Brazil  1999  37737  172006362
+#> 4      Brazil  2000  80488  174504898
+#> 5       China  1999 212258 1272915272
+#> 6       China  2000 213766 1280428583
+```
+```{r}
+table2
+```
+```
+#> # A tibble: 12 × 4
+#>       country  year       type     count
+#>         <chr> <int>      <chr>     <int>
+#> 1 Afghanistan  1999      cases       745
+#> 2 Afghanistan  1999 population  19987071
+#> 3 Afghanistan  2000      cases      2666
+#> 4 Afghanistan  2000 population  20595360
+#> 5      Brazil  1999      cases     37737
+#> 6      Brazil  1999 population 172006362
+#> # ... with 6 more rows
+```
+```{r}
+table3
+```
+```
+#> # A tibble: 6 × 3
+#>       country  year              rate
+#> *       <chr> <int>             <chr>
+#> 1 Afghanistan  1999      745/19987071
+#> 2 Afghanistan  2000     2666/20595360
+#> 3      Brazil  1999   37737/172006362
+#> 4      Brazil  2000   80488/174504898
+#> 5       China  1999 212258/1272915272
+#> 6       China  2000 213766/1280428583
+```
+```{r}
+# Spread across two tibbles
+table4a  # cases
+```
+```
+#> # A tibble: 3 × 3
+#>       country `1999` `2000`
+#> *       <chr>  <int>  <int>
+#> 1 Afghanistan    745   2666
+#> 2      Brazil  37737  80488
+#> 3       China 212258 213766
+```
+```{r}
+table4b  # population
+```
+```
+#> # A tibble: 3 × 3
+#>       country     `1999`     `2000`
+#> *       <chr>      <int>      <int>
+#> 1 Afghanistan   19987071   20595360
+#> 2      Brazil  172006362  174504898
+#> 3       China 1272915272 1280428583
+```
+
+规整的数据集必须符合以下3条相互关联的规则：  
+
++ 每一列代表一个变量
+
++ 每一行代表一个观测
+
++ 每个单元格代表一个值
+
+以上3条规则可以用下图表示：
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/tidy-1.png)
+
+在实践中，以上3条规则可以转化为2条操作指引：  
+
++ 将数据集转化为 `tibble`
+
++ 将变量转化为 `tibble` 中的一列
+
+在以上四个数据集中，只有 `table1` 是规整的。因为只有该数据集中每一列就是一个变量。
+
+规整的数据集有2个优点：  
+
++ 可以采用一种前后一致的方式存储数据。
+
++ 将一个变量存储在一个列中便于 `R` 进行向量化操作。
+
+`dplyr` 、 `ggplot2` 和其他 `tidyverse` 中的包都只能应用于规整的数据集，以下是几个对 `table1` 数据集进行处理的例子：
+
+计算每万人 `cases` ：
+```{r}
+table1 %>% 
+  mutate(rate = cases / population * 10000)
+```
+```
+#> # A tibble: 6 × 5
+#>       country  year  cases population  rate
+#>         <chr> <int>  <int>      <int> <dbl>
+#> 1 Afghanistan  1999    745   19987071 0.373
+#> 2 Afghanistan  2000   2666   20595360 1.294
+#> 3      Brazil  1999  37737  172006362 2.194
+#> 4      Brazil  2000  80488  174504898 4.612
+#> 5       China  1999 212258 1272915272 1.667
+#> 6       China  2000 213766 1280428583 1.669
+```
+
+计算每一年 `cases` 的均值：
+```{r}
+table1 %>% 
+  count(year, wt = cases)
+```
+```
+#> # A tibble: 2 × 2
+#>    year      n
+#>   <int>  <int>
+#> 1  1999 250740
+#> 2  2000 296920
+```
+
+对 `cases` 每一年变化进行可视化：
+```{r}
+ggplot(table1, aes(year, cases)) + 
+  geom_line(aes(group = country), colour = "grey50") + 
+  geom_point(aes(colour = country))
+```
+
+# 3 Spreading and gathering
+规整数据集的过程中会遇到以下两个主要问题：  
+
++ 一个变量分散在好几个列中
+
++ 一个观测分散在好几个行中
+
+需要使用 `tidyr` 中的 `gather()` 和 `spread()` 函数。
+
+## 3.1 Gathering
+在某些数据集中，一个变量分散在好几个列中，列名不是变量名而是另一个分组变量的取值。例如 `table4a` ：列名 `1999` 和 `2000` 是 变量 `year` 的值， `cases` 分散在 `1999` 和 `2000` 列中。每一行代表两个观测，而非一个。
+```{r}
+table4a
+```
+```
+#> # A tibble: 3 × 3
+#>       country `1999` `2000`
+#> *       <chr>  <int>  <int>
+#> 1 Afghanistan    745   2666
+#> 2      Brazil  37737  80488
+#> 3       China 212258 213766
+```
+
+使用 `gather()` 函数对这类数据集进行规整，需要用到3个参数：  
+
++ 原数据集中的列名（是变量的取值）： `1999` 和 `2000`
+
++ 变量名（取值是原数据集中的列名）： `key` ，此处为 `year`
+
++ 单元格中的值的变量名： `value`，此处为 `cases`
+
+```{r}
+table4a %>% 
+  gather(`1999`, `2000`, key = "year", value = "cases")
+```
+```
+#> # A tibble: 6 × 3
+#>       country  year  cases
+#>         <chr> <chr>  <int>
+#> 1 Afghanistan  1999    745
+#> 2      Brazil  1999  37737
+#> 3       China  1999 212258
+#> 4 Afghanistan  2000   2666
+#> 5      Brazil  2000  80488
+#> 6       China  2000 213766
+```
+`gather()` 函数的工作原理如下图：
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/tidy-9.png)
+
+被 `gather` 的列将会被舍弃，得到 `key` 和 `value` 列，且原数据集中变量之间的关系将会被保留。同理，可以对 `table4b` 数据集进行规整处理：
+```{r}
+table4b %>% 
+  gather(`1999`, `2000`, key = "year", value = "population")
+```
+```
+#> # A tibble: 6 × 3
+#>       country  year population
+#>         <chr> <chr>      <int>
+#> 1 Afghanistan  1999   19987071
+#> 2      Brazil  1999  172006362
+#> 3       China  1999 1272915272
+#> 4 Afghanistan  2000   20595360
+#> 5      Brazil  2000  174504898
+#> 6       China  2000 1280428583
+```
+
+可以使用 `dplyr::left_join()` 函数联结规整后的 `table4a` 和 `talbe4b` 数据集：
+```
+tidy4a <- table4a %>% 
+  gather(`1999`, `2000`, key = "year", value = "cases")
+tidy4b <- table4b %>% 
+  gather(`1999`, `2000`, key = "year", value = "population")
+left_join(tidy4a, tidy4b)
+```
+```
+#> Joining, by = c("country", "year")
+#> # A tibble: 6 × 4
+#>       country  year  cases population
+#>         <chr> <chr>  <int>      <int>
+#> 1 Afghanistan  1999    745   19987071
+#> 2      Brazil  1999  37737  172006362
+#> 3       China  1999 212258 1272915272
+#> 4 Afghanistan  2000   2666   20595360
+#> 5      Brazil  2000  80488  174504898
+#> 6       China  2000 213766 1280428583
+```
+
+## 3.2 Spreading
+`spread()` 是 `gather()` 的反操作。在某些数据集中，一个观测分散在好几个行中。例如 `table2` ：每一个观测分散在两行中。
+```{r}
+table2
+```
+```
+#> # A tibble: 12 × 4
+#>       country  year       type     count
+#>         <chr> <int>      <chr>     <int>
+#> 1 Afghanistan  1999      cases       745
+#> 2 Afghanistan  1999 population  19987071
+#> 3 Afghanistan  2000      cases      2666
+#> 4 Afghanistan  2000 population  20595360
+#> 5      Brazil  1999      cases     37737
+#> 6      Brazil  1999 population 172006362
+#> # ... with 6 more rows
+```
+使用 `spread()` 函数对这类数据集进行规整，需要用到2个参数：  
+
++ 保存变量名的列： `key` ，此处为 `type`
+
++ 保存变量取值的列： `value` ，此处为 `count`
+
+```{r}
+spread(table2, key = type, value = count)
+```
+```
+#> # A tibble: 6 × 4
+#>       country  year  cases population
+#> *       <chr> <int>  <int>      <int>
+#> 1 Afghanistan  1999    745   19987071
+#> 2 Afghanistan  2000   2666   20595360
+#> 3      Brazil  1999  37737  172006362
+#> 4      Brazil  2000  80488  174504898
+#> 5       China  1999 212258 1272915272
+#> 6       China  2000 213766 1280428583
+```
+
+`spread()` 函数的工作原理如下图： 
+![](https://github.com/blueliberty/R-for-Data-Science/blob/master/Pictures/tidy-8.png?raw=true)
+
+
+`gather()` 函数将宽格式的数据集转换为长格式， `spread()` 函数将长格式的数据集转换为宽格式。 
+
+
+# 4 Separating and uniting
+## 4.1 Separate
+`table3` 中的 `rate` 列包含了两个变量 `cases` 和 `population` 。使用 `separate()` 函数将其分离。
+```{r}
+table3
+```
+```
+#> # A tibble: 6 × 3
+#>       country  year              rate
+#> *       <chr> <int>             <chr>
+#> 1 Afghanistan  1999      745/19987071
+#> 2 Afghanistan  2000     2666/20595360
+#> 3      Brazil  1999   37737/172006362
+#> 4      Brazil  2000   80488/174504898
+#> 5       China  1999 212258/1272915272
+#> 6       China  2000 213766/1280428583
+```
+
+```{r}
+table3 %>% 
+  separate(rate, into = c("cases", "population"))
+```
+```
+#> # A tibble: 6 × 4
+#>       country  year  cases population
+#> *       <chr> <int>  <chr>      <chr>
+#> 1 Afghanistan  1999    745   19987071
+#> 2 Afghanistan  2000   2666   20595360
+#> 3      Brazil  1999  37737  172006362
+#> 4      Brazil  2000  80488  174504898
+#> 5       China  1999 212258 1272915272
+#> 6       China  2000 213766 1280428583
+```
+`separate()` 函数的工作原理如下：
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/tidy-17.png)
+
+`separate()` 函数在遇到非字母/数字的字符时就会对值进行拆分，使用 `sep` 参数可以指定分隔符。
+```{r}
+table3 %>% 
+  separate(rate, into = c("cases", "population"), sep = "/")
+```
+```
+#> # A tibble: 6 × 4
+#>       country  year  cases population
+#> *       <chr> <int>  <chr>      <chr>
+#> 1 Afghanistan  1999    745   19987071
+#> 2 Afghanistan  2000   2666   20595360
+#> 3      Brazil  1999  37737  172006362
+#> 4      Brazil  2000  80488  174504898
+#> 5       China  1999 212258 1272915272
+#> 6       China  2000 213766 1280428583
+```
+
+`separate()` 函数默认保留原列的数据类型。在上例中，拆分出的变量 `cases` 和 `population` 依然保留 `rate` 列的数据类型 - 字符串。使用 `onvert = TRUE` 参数，可以将拆分出的变量转化为适合的数据类型。
+```{r}
+table3 %>% 
+  separate(rate, into = c("cases", "population"), convert = TRUE)
+```
+```
+#> # A tibble: 6 × 4
+#>       country  year  cases population
+#> *       <chr> <int>  <int>      <int>
+#> 1 Afghanistan  1999    745   19987071
+#> 2 Afghanistan  2000   2666   20595360
+#> 3      Brazil  1999  37737  172006362
+#> 4      Brazil  2000  80488  174504898
+#> 5       China  1999 212258 1272915272
+#> 6       China  2000 213766 1280428583
+```
+
+可以给 `sep` 参数传递一个整数， `separate()` 函数会将之视为分隔符的位置。正数 `1` 代表最左边的字符，负数 `-1` 代表最右边的字符。 `sep` 参数中整数的个数应该比拆分出的列数少一个。
+```{r}
+table3 %>% 
+  separate(year, into = c("century", "year"), sep = 2)
+```
+```
+#> # A tibble: 6 × 4
+#>       country century  year              rate
+#> *       <chr>   <chr> <chr>             <chr>
+#> 1 Afghanistan      19    99      745/19987071
+#> 2 Afghanistan      20    00     2666/20595360
+#> 3      Brazil      19    99   37737/172006362
+#> 4      Brazil      20    00   80488/174504898
+#> 5       China      19    99 212258/1272915272
+#> 6       China      20    00 213766/1280428583
+```
+
+## 4.2 Unite
+`unite()` 是 `separate()` 的反操作。它可以将多个列合并成一个变量。
+
+```{r}
+table5
+```
+```
+#> # A tibble: 6 × 4
+#>       country century  year              rate
+#> *       <chr>   <chr> <chr>             <chr>
+#> 1 Afghanistan      19    99      745/19987071
+#> 2 Afghanistan      20    00     2666/20595360
+#> 3      Brazil      19    99   37737/172006362
+#> 4      Brazil      20    00   80488/174504898
+#> 5       China      19    99 212258/1272915272
+#> 6       China      20    00 213766/1280428583
+```
+
+```{r}
+table5 %>% 
+  unite(new, century, year)
+```
+```
+#> # A tibble: 6 × 3
+#>       country   new              rate
+#> *       <chr> <chr>             <chr>
+#> 1 Afghanistan 19_99      745/19987071
+#> 2 Afghanistan 20_00     2666/20595360
+#> 3      Brazil 19_99   37737/172006362
+#> 4      Brazil 20_00   80488/174504898
+#> 5       China 19_99 212258/1272915272
+#> 6       China 20_00 213766/1280428583
+```
+
+`unite()` 函数默认添加一个分隔符 `_` ，可以设置 `sep = ""` 避免出现分隔符。
+```{r}
+table5 %>% 
+  unite(new, century, year, sep = "")
+```
+
+```
+#> # A tibble: 6 × 3
+#>       country   new              rate
+#> *       <chr> <chr>             <chr>
+#> 1 Afghanistan  1999      745/19987071
+#> 2 Afghanistan  2000     2666/20595360
+#> 3      Brazil  1999   37737/172006362
+#> 4      Brazil  2000   80488/174504898
+#> 5       China  1999 212258/1272915272
+#> 6       China  2000 213766/1280428583
+```
+`unite()` 函数的工作原理如下： 
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/tidy-18.png)
+
+# 5 缺失值
+有2种方式表示缺失值：  
+
++ 显式缺失值：用 `NA` 表示
++ 隐式缺失值：在数据集中缺失
+
+以 `stocks` 数据集为例，该数据集中有2个缺失值：  
+
++ `2015` 年第 `4` 季度的 `return` 显示缺失，用 `NA` 表示
++ `2016` 年第 `1` 季度的 `return` 隐式缺失，在数据集中缺失
+```{r}
+stocks <- tibble(
+  year   = c(2015, 2015, 2015, 2015, 2016, 2016, 2016),
+  qtr    = c(   1,    2,    3,    4,    2,    3,    4),
+  return = c(1.88, 0.59, 0.35,   NA, 0.92, 0.17, 2.66)
+)
+
+stocks
+```
+```
+#> # A tibble: 7 × 3
+#>    year   qtr return
+#>   <dbl> <dbl>  <dbl>
+#> 1  2015     1   1.88
+#> 2  2015     2   0.59
+#> 3  2015     3   0.35
+#> 4  2015     4     NA
+#> 5  2016     2   0.92
+#> 6  2016     3   0.17
+#> 7  2016     4   2.66
+```
+
++ 使用 `spread()` 改变数据集的表现形式，可以将隐式缺失值转化为显式缺失值：
+```{r}
+stocks %>% 
+  spread(year, return)
+```
+```
+#> # A tibble: 4 × 3
+#>     qtr `2015` `2016`
+#> * <dbl>  <dbl>  <dbl>
+#> 1     1   1.88     NA
+#> 2     2   0.59   0.92
+#> 3     3   0.35   0.17
+#> 4     4     NA   2.66
+```
++ 使用 `gather()` 函数恢复数据集原有表现形式时，设置参数 `na.rm = TRUE` ，可以将显式缺失值转化为隐式缺失值：
+```{r}
+stocks %>% 
+  spread(year, return) %>% 
+  gather(year, return, `2015`:`2016`, na.rm = TRUE)
+```
+```
+#> # A tibble: 6 × 3
+#>     qtr  year return
+#> * <dbl> <chr>  <dbl>
+#> 1     1  2015   1.88
+#> 2     2  2015   0.59
+#> 3     3  2015   0.35
+#> 4     2  2016   0.92
+#> 5     3  2016   0.17
+#> 6     4  2016   2.66
+```
+
++ 使用 `complete()` 函数将隐式缺失值转化为显式缺失值：
+```{r}
+stocks %>% 
+  complete(year, qtr)
+```
+```
+#> # A tibble: 8 × 3
+#>    year   qtr return
+#>   <dbl> <dbl>  <dbl>
+#> 1  2015     1   1.88
+#> 2  2015     2   0.59
+#> 3  2015     3   0.35
+#> 4  2015     4     NA
+#> 5  2016     1     NA
+#> 6  2016     2   0.92
+#> # ... with 2 more rows
+```
+`complete()` 函数会使用指定列的所有唯一值进行组合，并确保数据集中包含所有的组合，对原始数据集中没有出现的组合用 `NA` 填充。
+
++ 使用 `fill()` 填充缺失值：
+```{r}
+treatment <- tribble(
+  ~ person,           ~ treatment, ~response,
+  "Derrick Whitmore", 1,           7,
+  NA,                 2,           10,
+  NA,                 3,           9,
+  "Katherine Burke",  1,           4
+)
+
+treatment
+```
+
+```
+#> # A tibble: 4 × 3
+#>             person treatment response
+#>              <chr>     <dbl>    <dbl>
+#> 1 Derrick Whitmore         1        7
+#> 2             <NA>         2       10
+#> 3             <NA>         3        9
+#> 4  Katherine Burke         1        4
+```
+
+```{r}
+treatment %>% 
+  fill(person)
+```
+```
+#> # A tibble: 4 × 3
+#>             person treatment response
+#>              <chr>     <dbl>    <dbl>
+#> 1 Derrick Whitmore         1        7
+#> 2 Derrick Whitmore         2       10
+#> 3 Derrick Whitmore         3        9
+#> 4  Katherine Burke         1        4
+```
+
+# 6 案例学习
+`tidyr::who` 数据集包含了肺结核病例。这是一个典型的实践中会遇到的数据集，包含了冗余的列，奇怪的变量编码，以及非常多的缺失值。
+```{r}
+who
+```
+```
+#> # A tibble: 7,240 × 60
+#>       country  iso2  iso3  year new_sp_m014 new_sp_m1524 new_sp_m2534
+#>         <chr> <chr> <chr> <int>       <int>        <int>        <int>
+#> 1 Afghanistan    AF   AFG  1980          NA           NA           NA
+#> 2 Afghanistan    AF   AFG  1981          NA           NA           NA
+#> 3 Afghanistan    AF   AFG  1982          NA           NA           NA
+#> 4 Afghanistan    AF   AFG  1983          NA           NA           NA
+#> 5 Afghanistan    AF   AFG  1984          NA           NA           NA
+#> 6 Afghanistan    AF   AFG  1985          NA           NA           NA
+#> # ... with 7,234 more rows, and 53 more variables: new_sp_m3544 <int>,
+#> #   new_sp_m4554 <int>, new_sp_m5564 <int>, new_sp_m65 <int>,
+#> #   new_sp_f014 <int>, new_sp_f1524 <int>, new_sp_f2534 <int>,
+#> #   new_sp_f3544 <int>, new_sp_f4554 <int>, new_sp_f5564 <int>,
+#> #   new_sp_f65 <int>, new_sn_m014 <int>, new_sn_m1524 <int>,
+#> #   new_sn_m2534 <int>, new_sn_m3544 <int>, new_sn_m4554 <int>,
+#> #   new_sn_m5564 <int>, new_sn_m65 <int>, new_sn_f014 <int>,
+#> #   new_sn_f1524 <int>, new_sn_f2534 <int>, new_sn_f3544 <int>,
+#> #   new_sn_f4554 <int>, new_sn_f5564 <int>, new_sn_f65 <int>,
+#> #   new_ep_m014 <int>, new_ep_m1524 <int>, new_ep_m2534 <int>,
+#> #   new_ep_m3544 <int>, new_ep_m4554 <int>, new_ep_m5564 <int>,
+#> #   new_ep_m65 <int>, new_ep_f014 <int>, new_ep_f1524 <int>,
+#> #   new_ep_f2534 <int>, new_ep_f3544 <int>, new_ep_f4554 <int>,
+#> #   new_ep_f5564 <int>, new_ep_f65 <int>, newrel_m014 <int>,
+#> #   newrel_m1524 <int>, newrel_m2534 <int>, newrel_m3544 <int>,
+#> #   newrel_m4554 <int>, newrel_m5564 <int>, newrel_m65 <int>,
+#> #   newrel_f014 <int>, newrel_f1524 <int>, newrel_f2534 <int>,
+#> #   newrel_f3544 <int>, newrel_f4554 <int>, newrel_f5564 <int>,
+#> #   newrel_f65 <int>
+```
+
++ `country`, `iso2`, `iso3` 看上去都是用来表示国家
++ `year` 很明显是表示年份的变量
++ 暂时看不出其他列的含义，但是从列名的结构来看（`new_sp_m014`, `new_ep_m014`, `new_ep_f014`)，它们可能是变量的取值而非变量名
+
+处理流程如下：  
+
++ 1 用 `gather()` 函数处理 `new_sp_m014` 列到 `newrel_f65` 列。由于不知道这些值的含义，姑且先命名为 `key` ，单元格内的取值表示病例数，因而命名为 `cases` ，使用 `na.rm` 参数删除缺失值。
+
+```{r}
+who1 <- who %>% 
+  gather(new_sp_m014:newrel_f65, key = "key", value = "cases", na.rm = TRUE)
+
+who1
+```
+```
+#> # A tibble: 76,046 × 6
+#>       country  iso2  iso3  year         key cases
+#> *       <chr> <chr> <chr> <int>       <chr> <int>
+#> 1 Afghanistan    AF   AFG  1997 new_sp_m014     0
+#> 2 Afghanistan    AF   AFG  1998 new_sp_m014    30
+#> 3 Afghanistan    AF   AFG  1999 new_sp_m014     8
+#> 4 Afghanistan    AF   AFG  2000 new_sp_m014    52
+#> 5 Afghanistan    AF   AFG  2001 new_sp_m014   129
+#> 6 Afghanistan    AF   AFG  2002 new_sp_m014    90
+#> # ... with 7.604e+04 more rows
+```
+
++ 2 对 `key` 列的取值进行计数，可以得到一些关于该列取值含义的提示。
+```{r}
+who1 %>% 
+  count(key)
+```
+```
+#> # A tibble: 56 × 2
+#>            key     n
+#>          <chr> <int>
+#> 1  new_ep_f014  1032
+#> 2 new_ep_f1524  1021
+#> 3 new_ep_f2534  1021
+#> 4 new_ep_f3544  1021
+#> 5 new_ep_f4554  1017
+#> 6 new_ep_f5564  1017
+#> # ... with 50 more rows
+```
+
++ 3 数据集中 `new_rel` 被写成了 `newrel` ，用 `str_replace()` 函数进行处理。
+
+```{r}
+who2 <- who1 %>% 
+  mutate(key = stringr::str_replace(key, "newrel", "new_rel"))
+
+who2
+```
+```
+#> # A tibble: 76,046 × 6
+#>       country  iso2  iso3  year         key cases
+#>         <chr> <chr> <chr> <int>       <chr> <int>
+#> 1 Afghanistan    AF   AFG  1997 new_sp_m014     0
+#> 2 Afghanistan    AF   AFG  1998 new_sp_m014    30
+#> 3 Afghanistan    AF   AFG  1999 new_sp_m014     8
+#> 4 Afghanistan    AF   AFG  2000 new_sp_m014    52
+#> 5 Afghanistan    AF   AFG  2001 new_sp_m014   129
+#> 6 Afghanistan    AF   AFG  2002 new_sp_m014    90
+#> # ... with 7.604e+04 more rows
+```
+
++ 4 明确 `key` 列取值的含义
+    + 前3个字母表示新发或陈旧的结核病病例
+    + 接下来2个字母表示结核病的种类
+        + `rel` stands for cases of relapse
+        + `ep` stands for cases of extrapulmonary TB
+        + `sn` stands for cases of pulmonary TB that could not be diagnosed by a pulmonary smear (smear negative)
+        + `sp` stands for cases of pulmonary TB that could be diagnosed be a pulmonary smear (smear positive)
+    + 第6个字母表示结核病人的性别， `m` 表示男性， `f` 表示女性
+    + 剩下的数字表示年龄组
+        + `014` = 0 – 14 years old
+        + `1524` = 15 – 24 years old
+        + `2534` = 25 – 34 years old
+        + `3544` = 35 – 44 years old
+        + `4554` = 45 – 54 years old
+        + `5564` = 55 – 64 years old
+        + `65` = 65 or olde  
+
+使用 `separate()` 函数将变量分离
+```{r}
+who3 <- who2 %>% 
+  separate(key, c("new", "type", "sexage"), sep = "_")
+
+who3
+```
+```
+#> # A tibble: 76,046 × 8
+#>       country  iso2  iso3  year   new  type sexage cases
+#> *       <chr> <chr> <chr> <int> <chr> <chr>  <chr> <int>
+#> 1 Afghanistan    AF   AFG  1997   new    sp   m014     0
+#> 2 Afghanistan    AF   AFG  1998   new    sp   m014    30
+#> 3 Afghanistan    AF   AFG  1999   new    sp   m014     8
+#> 4 Afghanistan    AF   AFG  2000   new    sp   m014    52
+#> 5 Afghanistan    AF   AFG  2001   new    sp   m014   129
+#> 6 Afghanistan    AF   AFG  2002   new    sp   m014    90
+#> # ... with 7.604e+04 more rows
+```
+
++ 5 由于 `new` 变量的取值均为 new ，因此可以删除，同时删除 `iso2` 和 `iso3` 。
+```{r}
+who3 %>% 
+  count(new)
+```
+```
+#> # A tibble: 1 × 2
+#>     new     n
+#>   <chr> <int>
+#> 1   new 76046
+```
+```{r}
+who4 <- who3 %>% 
+  select(-new, -iso2, -iso3)
+```
+
++ 6 将 `sexage` 分离为 `sex` 和 `age` 。
+```{r}
+who5 <- who4 %>% 
+  separate(sexage, c("sex", "age"), sep = 1)
+
+who5
+```
+```
+#> # A tibble: 76,046 × 6
+#>       country  year  type   sex   age cases
+#> *       <chr> <int> <chr> <chr> <chr> <int>
+#> 1 Afghanistan  1997    sp     m   014     0
+#> 2 Afghanistan  1998    sp     m   014    30
+#> 3 Afghanistan  1999    sp     m   014     8
+#> 4 Afghanistan  2000    sp     m   014    52
+#> 5 Afghanistan  2001    sp     m   014   129
+#> 6 Afghanistan  2002    sp     m   014    90
+#> # ... with 7.604e+04 more rows
+```
+
++ 7 用管道操作符 `%>%` 将以上步骤组合起来。
+```{r}
+who %>%
+  gather(code, value, new_sp_m014:newrel_f65, na.rm = TRUE) %>% 
+  mutate(code = stringr::str_replace(code, "newrel", "new_rel")) %>%
+  separate(code, c("new", "var", "sexage")) %>% 
+  select(-new, -iso2, -iso3) %>% 
+  separate(sexage, c("sex", "age"), sep = 1)
+```
+```
+#> # A tibble: 76,046 × 6
+#>       country  year  type   sex   age cases
+#> *       <chr> <int> <chr> <chr> <chr> <int>
+#> 1 Afghanistan  1997    sp     m   014     0
+#> 2 Afghanistan  1998    sp     m   014    30
+#> 3 Afghanistan  1999    sp     m   014     8
+#> 4 Afghanistan  2000    sp     m   014    52
+#> 5 Afghanistan  2001    sp     m   014   129
+#> 6 Afghanistan  2002    sp     m   014    90
+#> # ... with 7.604e+04 more rows
+```
+
+# 7 非规整数据
+有以下两个主要原因，我们需要使用非规整数据：  
+
++ 在某些情况下，非规整数据的具有性能和存储空间的优势
+
++ 在某些领域中，使用非规整数据是惯例
+
+参见：http://simplystatistics.org/2016/02/17/non-tidy-data/
