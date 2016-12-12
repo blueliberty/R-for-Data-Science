@@ -1,0 +1,644 @@
+---
+title: "联结"
+output: html_notebook
+---
+
+# 目录
++ 1 介绍
+    + 1.1 载入包
++ 2 `nycflights13` 包
++ 3 键
++ 4 变异联结
+    + 4.1 理解联结
+    + 4.2 內联结
+    + 4.3 外联结
+    + 4.4 重复键
+    + 4.5 设定键
+    + 4.6 其他联结函数
++ 5 过滤联结
+    + 5.1 semi_join
+    + 5.2 anti_join
++ 6 联结需要注意的问题
++ 7 集合操作
+
+# 1 介绍
+
++ **变异联结(Mutating joins)**：通过与其他表中的观测进行匹配，来向一个表中添加变量
+
++ **过滤联结(Filtering joins)**：根据与其他表中的观测有没有匹配，来过滤一个表中的观测
+
++ **集合操作(Set operations)**：将观测像集合中的元素一样操作
+
+## 1.1 载入包
+```{r}
+library(tidyverse)
+```
+```{r}
+library(nycflights13)
+```
+
+# 2 `nycflights13` 包
+`nycflights13` 包中包含了4个 与 `flights` 数据集相关联的 `tibble` ：  
+
++ `airlines` 包含航空公司的全称和代码
+```{r}
+airlines
+```
+
+```
+#> # A tibble: 16 × 2
+#>   carrier                     name
+#>     <chr>                    <chr>
+#> 1      9E        Endeavor Air Inc.
+#> 2      AA   American Airlines Inc.
+#> 3      AS     Alaska Airlines Inc.
+#> 4      B6          JetBlue Airways
+#> 5      DL     Delta Air Lines Inc.
+#> 6      EV ExpressJet Airlines Inc.
+#> # ... with 10 more rows
+```
+
++ `airports` 包含机场的信息，机场代码为 `faa`
+```{r}
+airports
+```
+
+```
+#> # A tibble: 1,396 × 7
+#>     faa                           name   lat   lon   alt    tz   dst
+#>   <chr>                          <chr> <dbl> <dbl> <int> <dbl> <chr>
+#> 1   04G              Lansdowne Airport  41.1 -80.6  1044    -5     A
+#> 2   06A  Moton Field Municipal Airport  32.5 -85.7   264    -5     A
+#> 3   06C            Schaumburg Regional  42.0 -88.1   801    -6     A
+#> 4   06N                Randall Airport  41.4 -74.4   523    -5     A
+#> 5   09J          Jekyll Island Airport  31.1 -81.4    11    -4     A
+#> 6   0A9 Elizabethton Municipal Airport  36.4 -82.2  1593    -4     A
+#> # ... with 1,390 more rows
+```
+
++ `planes` 包含航班的信息，由 `tailnum` 标识
+```{r}
+planes
+```
+
+```
+#> # A tibble: 3,322 × 9
+#>   tailnum  year                    type     manufacturer     model engines
+#>     <chr> <int>                   <chr>            <chr>     <chr>   <int>
+#> 1  N10156  2004 Fixed wing multi engine          EMBRAER EMB-145XR       2
+#> 2  N102UW  1998 Fixed wing multi engine AIRBUS INDUSTRIE  A320-214       2
+#> 3  N103US  1999 Fixed wing multi engine AIRBUS INDUSTRIE  A320-214       2
+#> 4  N104UW  1999 Fixed wing multi engine AIRBUS INDUSTRIE  A320-214       2
+#> 5  N10575  2002 Fixed wing multi engine          EMBRAER EMB-145LR       2
+#> 6  N105UW  1999 Fixed wing multi engine AIRBUS INDUSTRIE  A320-214       2
+#> # ... with 3,316 more rows, and 3 more variables: seats <int>,
+#> #   speed <int>, engine <chr>
+```
+
++ `weather` 包含所有位于纽约的机场，每小时的天气情况
+```{r}
+weather
+```
+
+```
+#> # A tibble: 26,130 × 15
+#>   origin  year month   day  hour  temp  dewp humid wind_dir wind_speed
+#>    <chr> <dbl> <dbl> <int> <int> <dbl> <dbl> <dbl>    <dbl>      <dbl>
+#> 1    EWR  2013     1     1     0  37.0  21.9  54.0      230       10.4
+#> 2    EWR  2013     1     1     1  37.0  21.9  54.0      230       13.8
+#> 3    EWR  2013     1     1     2  37.9  21.9  52.1      230       12.7
+#> 4    EWR  2013     1     1     3  37.9  23.0  54.5      230       13.8
+#> 5    EWR  2013     1     1     4  37.9  24.1  57.0      240       15.0
+#> 6    EWR  2013     1     1     6  39.0  26.1  59.4      270       10.4
+#> # ... with 2.612e+04 more rows, and 5 more variables: wind_gust <dbl>,
+#> #   precip <dbl>, pressure <dbl>, visib <dbl>, time_hour <dttm>
+```
+
+下图可以表示几张表的相互联系：
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/relational-nycflights.png)
+
++ `flights` 通过变量 `tailnum` 与 `planes` 联结
+
++ `flights` 通过变量 `carrier` 与 `airlines` 联结
+
++ `flights` 通过变量 `origin` 、 `dest` 与 `airports` 联结
+
++ `flights` 通过变量 `origin` （地点）以及 `year` 、 `month` 、 `day` 、 `hour` （时间）与 `weather` 联结
+
+
+# 3 键
++ 主键：唯一地标识所在表中的某一个观测，例如 `planes` 中的 `tailnum` 。
+
++ 外键：唯一地标识其他表中的某一个观测，例如 `flights` 中的 `tailnum` 。
+
+一个变量可以既是主键也是外键，例如 `origin` 既是 `weather` 的主键之一，也是 `airport` 的外键。
+
+确保某个变量是主键的方法，是确保该变量的所有值都最多只出现一次：
+```{r}
+planes %>% 
+  count(tailnum) %>% 
+  filter(n > 1)
+```
+```
+#> # A tibble: 0 × 2
+#> # ... with 2 variables: tailnum <chr>, n <int>
+
+```
+```{r}
+weather %>% 
+  count(year, month, day, hour, origin) %>% 
+  filter(n > 1)
+```
+```
+#> Source: local data frame [0 x 6]
+#> Groups: year, month, day, hour [0]
+#> 
+#> # ... with 6 variables: year <dbl>, month <dbl>, day <int>, hour <int>,
+#> #   origin <chr>, n <int>
+```
+
+有时候，一张表中任何变量或组合都不是主键：
+```{r}
+flights %>% 
+  count(year, month, day, flight) %>% 
+  filter(n > 1)
+```
+```
+#> Source: local data frame [29,768 x 5]
+#> Groups: year, month, day [365]
+#> 
+#>    year month   day flight     n
+#>   <int> <int> <int>  <int> <int>
+#> 1  2013     1     1      1     2
+#> 2  2013     1     1      3     2
+#> 3  2013     1     1      4     2
+#> 4  2013     1     1     11     3
+#> 5  2013     1     1     15     2
+#> 6  2013     1     1     21     2
+#> # ... with 2.976e+04 more rows
+```
+```{r}
+flights %>% 
+  count(year, month, day, tailnum) %>% 
+  filter(n > 1)
+```
+```
+#> Source: local data frame [64,928 x 5]
+#> Groups: year, month, day [365]
+#> 
+#>    year month   day tailnum     n
+#>   <int> <int> <int>   <chr> <int>
+#> 1  2013     1     1  N0EGMQ     2
+#> 2  2013     1     1  N11189     2
+#> 3  2013     1     1  N11536     2
+#> 4  2013     1     1  N11544     3
+#> 5  2013     1     1  N11551     2
+#> 6  2013     1     1  N12540     2
+#> # ... with 6.492e+04 more rows
+```
+
+当一个表中没有主键时，可以使用 `mutate()` 和 `row_number()` 为该表添加代理键。
+
+# 4 变异联结
+**Mutating joins** 将两张表的变量联接：先用键来匹配观测，然后将一张表的变量复制到另一张表中。
+```{r}
+flights2 <- flights %>% 
+  select(year:day, hour, origin, dest, tailnum, carrier)
+
+flights2
+```
+```
+#> # A tibble: 336,776 × 8
+#>    year month   day  hour origin  dest tailnum carrier
+#>   <int> <int> <int> <dbl>  <chr> <chr>   <chr>   <chr>
+#> 1  2013     1     1     5    EWR   IAH  N14228      UA
+#> 2  2013     1     1     5    LGA   IAH  N24211      UA
+#> 3  2013     1     1     5    JFK   MIA  N619AA      AA
+#> 4  2013     1     1     5    JFK   BQN  N804JB      B6
+#> 5  2013     1     1     6    LGA   ATL  N668DN      DL
+#> 6  2013     1     1     5    EWR   ORD  N39463      UA
+#> # ... with 3.368e+05 more rows
+```
+为 `flights2` 表添加航空公司的全称，用 `left_join()` 将 `airlines` 和 `flights2` 联结：
+```{r}
+flights2 %>%
+  select(-origin, -dest) %>% 
+  left_join(airlines, by = "carrier")
+```
+
+```
+#> # A tibble: 336,776 × 7
+#>    year month   day  hour tailnum carrier                   name
+#>   <int> <int> <int> <dbl>   <chr>   <chr>                  <chr>
+#> 1  2013     1     1     5  N14228      UA  United Air Lines Inc.
+#> 2  2013     1     1     5  N24211      UA  United Air Lines Inc.
+#> 3  2013     1     1     5  N619AA      AA American Airlines Inc.
+#> 4  2013     1     1     5  N804JB      B6        JetBlue Airways
+#> 5  2013     1     1     6  N668DN      DL   Delta Air Lines Inc.
+#> 6  2013     1     1     5  N39463      UA  United Air Lines Inc.
+#> # ... with 3.368e+05 more rows
+```
+
+结果中增加了 `name` 变量，这一效果也可以通过 `mutate()` 达到，因而称这种联结方式为 **mutating join**。
+```{r}
+flights2 %>%
+  select(-origin, -dest) %>% 
+  mutate(name = airlines$name[match(carrier, airlines$carrier)])
+```
+
+## 4.1 理解联结
+```{r}
+x <- tribble(
+  ~key, ~val_x,
+     1, "x1",
+     2, "x2",
+     3, "x3"
+)
+y <- tribble(
+  ~key, ~val_y,
+     1, "y1",
+     2, "y2",
+     4, "y3"
+)
+```
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-setup.png)
+
+彩色的列是键，灰色的列是值。联结是将 `x` 中的每一行与 `y` 中的零行、一行或多行进行匹配。下图中每两条线的交点都表示一组潜在的匹配。
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-setup2.png)
+
+下图中彩色的交点表示成功的匹配。交点的个数 = 匹配的个数 = 结果中的行数。
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-inner.png)
+
+## 4.2 內联结
+当两个表中的键相等时，**內联结**匹配两个表中的观测。
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-inner.png)
+
+內联结的结果是一张新的表，包含了键、 `x` 的值， `y` 的值，并且丢弃没有匹配的观测。用 `by` 参数指定键：
+```{r}
+x %>% 
+  inner_join(y, by = "key")
+```
+```
+#> # A tibble: 2 × 3
+#>     key val_x val_y
+#>   <dbl> <chr> <chr>
+#> 1     1    x1    y1
+#> 2     2    x2    y2
+```
+
+## 4.3 外联结
+**外联结**至少会完整地保留一张表中所有观测，一共有3种类型的外联结：  
+
++ **左联结**保留 `x` 中所有的观测
++ **右联结**保留 `y` 中所有的观测
++ **全联结**保留 `x` 和 `y` 中所有的观测
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-outer.png)
+
+最常用的联结方式是左联结，会保留原始表中的所有观测，并为其添加其他表中的信息。用以下韦恩图可以表示几种联结的机制：
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-venn.png)
+
+## 4.4 重复键
++ 1 一张表中有重复键，即存在一对多的关系。
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-one-to-many.png)
+彩色的列是 `y` 的主键、 `x` 的外键。
+```{r}
+x <- tribble(
+  ~key, ~val_x,
+     1, "x1",
+     2, "x2",
+     2, "x3",
+     1, "x4"
+)
+y <- tribble(
+  ~key, ~val_y,
+     1, "y1",
+     2, "y2"
+)
+left_join(x, y, by = "key")
+```
+```
+#> # A tibble: 4 × 3
+#>     key val_x val_y
+#>   <dbl> <chr> <chr>
+#> 1     1    x1    y1
+#> 2     2    x2    y2
+#> 3     2    x3    y2
+#> 4     1    x4    y1
+```
+
++ 2 两张表中都有重复键，返回的结果是笛卡尔积。
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-many-to-many.png)
+```{r}
+x <- tribble(
+  ~key, ~val_x,
+     1, "x1",
+     2, "x2",
+     2, "x3",
+     3, "x4"
+)
+y <- tribble(
+  ~key, ~val_y,
+     1, "y1",
+     2, "y2",
+     2, "y3",
+     3, "y4"
+)
+left_join(x, y, by = "key")
+```
+```
+#> # A tibble: 6 × 3
+#>     key val_x val_y
+#>   <dbl> <chr> <chr>
+#> 1     1    x1    y1
+#> 2     2    x2    y2
+#> 3     2    x2    y3
+#> 4     2    x3    y2
+#> 5     2    x3    y3
+#> 6     3    x4    y4
+```
+
+## 4.5 设定键
++ 1 `by = NULL` ,使用所有两张表共有的列作为键，也称为**自然联结**。例如， `flights` 和 `weather` 表中共有的列是 `year` 、 `month` 、 `day` 、 `hour` 、 `origin`
+```{r}
+flights2 %>% 
+  left_join(weather)
+```
+```
+#> Joining, by = c("year", "month", "day", "hour", "origin")
+#> # A tibble: 336,776 × 18
+#>    year month   day  hour origin  dest tailnum carrier  temp  dewp humid
+#>   <dbl> <dbl> <int> <dbl>  <chr> <chr>   <chr>   <chr> <dbl> <dbl> <dbl>
+#> 1  2013     1     1     5    EWR   IAH  N14228      UA    NA    NA    NA
+#> 2  2013     1     1     5    LGA   IAH  N24211      UA    NA    NA    NA
+#> 3  2013     1     1     5    JFK   MIA  N619AA      AA    NA    NA    NA
+#> 4  2013     1     1     5    JFK   BQN  N804JB      B6    NA    NA    NA
+#> 5  2013     1     1     6    LGA   ATL  N668DN      DL  39.9  26.1  57.3
+#> 6  2013     1     1     5    EWR   ORD  N39463      UA    NA    NA    NA
+#> # ... with 3.368e+05 more rows, and 7 more variables: wind_dir <dbl>,
+#> #   wind_speed <dbl>, wind_gust <dbl>, precip <dbl>, pressure <dbl>,
+#> #   visib <dbl>, time_hour <dttm>
+```
+
++ 2 `by = "x"` ，使用部分两张表的共有的列作为键。例如， `flights` 和 `planes` 表中 都有变量 `year` ，但它们的含义不同，只使用 `tailnum` 列作为键。
+```{r}
+flights2 %>% 
+  left_join(planes, by = "tailnum")
+```
+```
+#> # A tibble: 336,776 × 16
+#>   year.x month   day  hour origin  dest tailnum carrier year.y
+#>    <int> <int> <int> <dbl>  <chr> <chr>   <chr>   <chr>  <int>
+#> 1   2013     1     1     5    EWR   IAH  N14228      UA   1999
+#> 2   2013     1     1     5    LGA   IAH  N24211      UA   1998
+#> 3   2013     1     1     5    JFK   MIA  N619AA      AA   1990
+#> 4   2013     1     1     5    JFK   BQN  N804JB      B6   2012
+#> 5   2013     1     1     6    LGA   ATL  N668DN      DL   1991
+#> 6   2013     1     1     5    EWR   ORD  N39463      UA   2012
+#> # ... with 3.368e+05 more rows, and 7 more variables: type <chr>,
+#> #   manufacturer <chr>, model <chr>, engines <int>, seats <int>,
+#> #   speed <int>, engine <chr>
+```
+注意 `year` 变量在在结果中添加了前缀以防止歧义。
+
++ 3 `by = c("a" = "b")` ，使用 `x` 表中的变量 `a` 和 `y` 表中的变量 `b` 作为键，结果中的变量名会使用 `x` 表中的变量 `a` 。例如， `flights` 表中的变量 `dest` 、 `origin` 和 `airports` 表中的变量 `faa` 。
+```{r}
+flights2 %>% 
+  left_join(airports, c("dest" = "faa"))
+```
+```
+#> # A tibble: 336,776 × 14
+#>    year month   day  hour origin  dest tailnum carrier
+#>   <int> <int> <int> <dbl>  <chr> <chr>   <chr>   <chr>
+#> 1  2013     1     1     5    EWR   IAH  N14228      UA
+#> 2  2013     1     1     5    LGA   IAH  N24211      UA
+#> 3  2013     1     1     5    JFK   MIA  N619AA      AA
+#> 4  2013     1     1     5    JFK   BQN  N804JB      B6
+#> 5  2013     1     1     6    LGA   ATL  N668DN      DL
+#> 6  2013     1     1     5    EWR   ORD  N39463      UA
+#> # ... with 3.368e+05 more rows, and 6 more variables: name <chr>,
+#> #   lat <dbl>, lon <dbl>, alt <int>, tz <dbl>, dst <chr>
+```
+
+```{r}
+flights2 %>% 
+  left_join(airports, c("origin" = "faa"))
+```
+```
+#> # A tibble: 336,776 × 14
+#>    year month   day  hour origin  dest tailnum carrier                name
+#>   <int> <int> <int> <dbl>  <chr> <chr>   <chr>   <chr>               <chr>
+#> 1  2013     1     1     5    EWR   IAH  N14228      UA Newark Liberty Intl
+#> 2  2013     1     1     5    LGA   IAH  N24211      UA          La Guardia
+#> 3  2013     1     1     5    JFK   MIA  N619AA      AA John F Kennedy Intl
+#> 4  2013     1     1     5    JFK   BQN  N804JB      B6 John F Kennedy Intl
+#> 5  2013     1     1     6    LGA   ATL  N668DN      DL          La Guardia
+#> 6  2013     1     1     5    EWR   ORD  N39463      UA Newark Liberty Intl
+#> # ... with 3.368e+05 more rows, and 5 more variables: lat <dbl>,
+#> #   lon <dbl>, alt <int>, tz <dbl>, dst <chr>
+```
+
+## 4.6 其他联结函数
++ `base::merge()` 可以实现所有4种联结：  
+
+|      **dplyr**       |                 **merge**                 |
+| -------------------- | ----------------------------------------- |
+| `inner_join(x, y)`   | `merge(x, y)`                             |
+| `left_join(x, y)`    | `merge(x, y, all.x = TRUE)`               |
+| `right_join(x, y)`   | `merge(x, y, all.y = TRUE)`               |
+| `full_join(x, y)`    | `merge(x, y, all.x = TRUE, all.y = TRUE)` |
+
+`dplyr` 中的联结函数代码更加清晰、速度更快，且不会打乱表中行的顺序。
+
++ `SQL` 中实现联结的函数：  
+
+|           **dplyr**           |                      **SQL**                   |
+| ----------------------------- | ---------------------------------------------- |
+| `inner_join(x, y, by = "z")`  | `SELECT * FROM x INNER JOIN y USING (z)`       |
+| `left_join(x, y, by = "z")`   | `SELECT * FROM x LEFT OUTER JOIN y USING (z)`  |
+| `right_join(x, y, by = "z")`  | `SELECT * FROM x RIGHT OUTER JOIN y USING (z)` |
+| `full_join(x, y, by = "z")`   | `SELECT * FROM x FULL OUTER JOIN y USING (z)`  |
+
+
+# 5 过滤联结
+**Filtering joins**匹配观测的方式与 mutating joins 相同，但是 filtering joins 影响行而不是列。有两种类型的 filtering joins ：  
+
++ `semi_join(x, y)` **保留** `x` 表中所有在 `y` 表中有匹配的观测
+
++ `anti_join(x, y)` **删除** `x` 表中所有在 `y` 表中有匹配的观测
+
+## 5.1 semi_join
+`semi_join()` 适用于用统计表来过滤原始表。例如，首先计算出最热门的10个目的地：
+```{r}
+top_dest <- flights %>%
+  count(dest, sort = TRUE) %>%
+  head(10)
+
+top_dest
+```
+```
+#> # A tibble: 10 × 2
+#>    dest     n
+#>   <chr> <int>
+#> 1   ORD 17283
+#> 2   ATL 17215
+#> 3   LAX 16174
+#> 4   BOS 15508
+#> 5   MCO 14082
+#> 6   CLT 14064
+#> # ... with 4 more rows
+```
+然后找出飞往这10个目的地的所有航班，可以使用 `filter()` 函数达到这一目的：
+```{r}
+flights %>% 
+  filter(dest %in% top_dest$dest)
+```
+```
+#> # A tibble: 141,145 × 19
+#>    year month   day dep_time sched_dep_time dep_delay arr_time
+#>   <int> <int> <int>    <int>          <int>     <dbl>    <int>
+#> 1  2013     1     1      542            540         2      923
+#> 2  2013     1     1      554            600        -6      812
+#> 3  2013     1     1      554            558        -4      740
+#> 4  2013     1     1      555            600        -5      913
+#> 5  2013     1     1      557            600        -3      838
+#> 6  2013     1     1      558            600        -2      753
+#> # ... with 1.411e+05 more rows, and 12 more variables:
+#> #   sched_arr_time <int>, arr_delay <dbl>, carrier <chr>, flight <int>,
+#> #   tailnum <chr>, origin <chr>, dest <chr>, air_time <dbl>,
+#> #   distance <dbl>, hour <dbl>, minute <dbl>, time_hour <dttm>
+```
+但是如果需要匹配的不仅仅是 `dest` 一个变量，而是多个变量， `filter()` 函数就很难起作用了。例如，找出延误最严重的10天，很难对 `filter()` 使用变量 `year` 、 `month` 、 `day` 来匹配 `flights` 表。  
+
+使用 `semi_join()` 可以达到这一目的，它联结表的方式和 mutating join 相同，但不会添加新的列，而是仅保留 `x` 表中在 `y` 表里有匹配的行：
+```{r}
+flights %>% 
+  semi_join(top_dest)
+```
+```
+#> Joining, by = "dest"
+#> # A tibble: 141,145 × 19
+#>    year month   day dep_time sched_dep_time dep_delay arr_time
+#>   <int> <int> <int>    <int>          <int>     <dbl>    <int>
+#> 1  2013     1     1      554            558        -4      740
+#> 2  2013     1     1      558            600        -2      753
+#> 3  2013     1     1      608            600         8      807
+#> 4  2013     1     1      629            630        -1      824
+#> 5  2013     1     1      656            700        -4      854
+#> 6  2013     1     1      709            700         9      852
+#> # ... with 1.411e+05 more rows, and 12 more variables:
+#> #   sched_arr_time <int>, arr_delay <dbl>, carrier <chr>, flight <int>,
+#> #   tailnum <chr>, origin <chr>, dest <chr>, air_time <dbl>,
+#> #   distance <dbl>, hour <dbl>, minute <dbl>, time_hour <dttm>
+```
+
+`semi-join()` 的工作原理如下图所示：
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-semi.png)
+
+在 filtering joins 中，有意义的是有没有匹配，匹配的具体情况则不重要，因此 filtering joins 并不会如 mutating joins 一样对行进行复制：
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-semi-many.png)
+
+## 5.2 anti_join
+`anti_join()` 是 `semi_join()` 的反操作，只保留在 `y` 表中没有匹配的观测
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/join-anti.png)
+
+`anti_join()` 适用于观察联结中不匹配的情况。例如，找出 `flights` 表中所有在 `planes` 表中没有匹配的观测：
+```{r}
+flights %>%
+  anti_join(planes, by = "tailnum") %>%
+  count(tailnum, sort = TRUE)
+```
+```
+#> # A tibble: 722 × 2
+#>   tailnum     n
+#>     <chr> <int>
+#> 1    <NA>  2512
+#> 2  N725MQ   575
+#> 3  N722MQ   513
+#> 4  N723MQ   507
+#> 5  N713MQ   483
+#> 6  N735MQ   396
+#> # ... with 716 more rows
+```
+
+# 6 联结需要注意的问题
+
++ 1 首先要找出每张表的主键。主键的选择需要基于对表的理解，而不能仅依靠寻找不存在重复情况的变量组合。例如，高度和经度对每个机场都是唯一的，但并不是一个好的主键。
+```{r}
+airports %>% count(alt, lon) %>% filter(n > 1)
+```
+```
+#> Source: local data frame [0 x 3]
+#> Groups: alt [0]
+#> 
+#> # ... with 3 variables: alt <int>, lon <dbl>, n <int>
+```
+
++ 2 确保主键中没有缺失值，存在缺失值的变量不可以做主键。
+
++ 3 使用 `anti_join()` 检查外键和其他表中的主键是否能够匹配。对于由于数据录入错误引起的不匹配，需要进行处理。如果存在不匹配的情况，需要慎重考虑使用內联结还是外联结（丢弃或保留不匹配的观测）。
+
+
+# 7 集合操作
++ `intersect(x, y)`：返回 `x` 表和 `y` 表中都有的观测（交集）
+
++ `union(x, y)`：返回 `x` 表或 `y` 表中有的观测（并集）
+
++ `setdiff(x, y)`：返回 `x` 表中有而 `y` 表没有的观测（差集）
+
+```{r}
+df1 <- tribble(
+  ~x, ~y,
+   1,  1,
+   2,  1
+)
+df2 <- tribble(
+  ~x, ~y,
+   1,  1,
+   1,  2
+)
+```
+
+```{r}
+intersect(df1, df2)
+```
+```
+#> # A tibble: 1 × 2
+#>       x     y
+#>   <dbl> <dbl>
+#> 1     1     1
+```
+
+```{r}
+union(df1, df2)
+```
+```
+#> # A tibble: 3 × 2
+#>       x     y
+#>   <dbl> <dbl>
+#> 1     1     2
+#> 2     2     1
+#> 3     1     1
+
+```
+
+```{r}
+setdiff(df1, df2)
+```
+```
+#> # A tibble: 1 × 2
+#>       x     y
+#>   <dbl> <dbl>
+#> 1     2     1
+```
+
+```{r}
+setdiff(df2, df1)
+```
+```
+#> # A tibble: 1 × 2
+#>       x     y
+#>   <dbl> <dbl>
+#> 1     1     2
+```
