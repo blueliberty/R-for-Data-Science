@@ -1,0 +1,729 @@
+---
+title: "字符串"
+output: html_notebook
+---
+
+# 目录
++ 1 前提准备
++ 2 字符串基础
+    + 2.1 字符串长度
+    + 2.2 连接字符串
+    + 2.3 选取子集
+    + 2.4 `Locales` 参数
++ 3 用正则表达式匹配模式
+    + 3.1 基本匹配
+    + 3.2 位置匹配
+    + 3.3 字符类与替换
+    + 3.4 重复
+    + 3.5 分组和后向引用
++ 4 正则表达式函数
+    + 4.1 判断是否匹配
+    + 4.2 提取匹配内容
+    + 4.3 分组匹配
+    + 4.4 替换匹配内容
+    + 4.5 按匹配切分
+    + 4.6 定位匹配的位置
++ 5 其他类型的模式匹配
+    + 5.1 `regax()` 的参数
+    + 5.2 其他类型的匹配函数
++ 6 正则表达式的其他用途
+7 `stringi`
+
+# 1 前提准备
+```{r}
+library(tidyverse)
+```
+```{r}
+library(stringr)
+```
+
+# 2 字符串基础
++ 可以用单引号 `'` 或双引号 `"` 来包裹字符串。建议使用双引号 `"` ，如果想要在字符串中使用引用，则内层用双引号 `"` ，外层用单引号 `'` ：
+
+```{r}
+string1 <- "This is a string"
+string2 <- 'If I want to include a "quote" inside a string, I use single quotes'
+```
+
++ 忘记输入右引号，会显示等待继续输入的标志 `+` ，可以使用 `Escape` 跳出：  
+
+```
+> "This is a string without a closing quote
++ 
++ 
++ HELP I'M STUCK
+```
+
++ 如果要在字符串中使用引号 `'` 或 `"` ，可以用反斜杠 `\` 进行转义。
+```{r}
+double_quote <- "\"" # or '"'
+single_quote <- '\'' # or "'"
+```
+因此，如果要在字符串中使用反斜杠 `\` ，也需要进行转义： `\\` 。
+
+
++ 打印的结果会包括引号、转移字符等，使用 `writeLines()` 可以看到字符串的内容：
+```{r}
+x <- c("\"", "\\")
+x
+```
+```{r}
+writeLines(x)
+```
+
++ 存在很多特殊字符，例如 `"\n"` 表示换行， `"\t"` 表示制表符等等。键入 `?'"'` 和 `?"'"` 可以查看完整列表。
+
++ 诸如 `"\u00b5"` 的字符串可以输入非英文字符：
+```
+x <- "\u00b5"
+x
+```
+```
+#> [1] "µ"
+```
+
++ 多个字符串通常保存在字符向量中：
+```{r}
+c("one", "two", "three")
+```
+
+## 2.1 字符串长度
+`R` 中有很多原生字符串函数，但是建议使用 `stringr` 中的函数，因为这些函数都以 `str_` 开头，且命名规则一致。例如： `str_length()` 会返回字符串的长度：
+```{r}
+str_length(c("a", "R for data science", NA))
+```
+
+在 Rstudio 中键入 `str_` 会触发自动补全，能够看到所有的 `stringr` 函数。
+
+![](https://github.com/blueliberty/R-for-Data-Science/blob/master/Pictures/stringr-autocomplete.png?raw=true)
+
+## 2.2 连接字符串
+使用 `str_c()` 连接多个字符串：
+```{r}
+str_c("x", "y")
+```
+```{r}
+str_c("x", "y", "z")
+```
+
+`sep` 参数设置分隔符：
+```{r}
+str_c("x", "y", sep = ", ")
+```
+
+在连接字符串时，缺失值会传染：
+```{r}
+x <- c("abc", NA)
+str_c("|-", x, "-|")
+```
+
+使用 `str_replace_na()` 函数可以将缺失值用 `NA` 的形式打印出来：
+```{r}
+str_c("|-", str_replace_na(x), "-|")
+```
+
+`str_c()` 是向量化函数，运算时对比较短的向量会自动补齐：
+```{r}
+str_c("prefix-", c("a", "b", "c"), "-suffix")
+```
+
+连接字符串时，长度为0的字符串会被丢弃，这一特性在于 `if` 语句联用时很有用：
+```{r}
+name <- "Hadley"
+time_of_day <- "morning"
+birthday <- FALSE
+
+str_c(
+  "Good ", time_of_day, " ", name,
+  if (birthday) " and HAPPY BIRTHDAY",
+  "."
+)
+```
+
+将一个字符串向量内的多个字符串融合成一个字符串，使用 `collapse` 参数：
+```{r}
+str_c(c("x", "y", "z"), collapse = ", ")
+```
+
+## 2.3 选取子集
+`str_sub()` 函数接受 `start` 和 `end` 参数，按位置（包含）选取子集：
+```{r}
+x <- c("Apple", "Banana", "Pear")
+str_sub(x, 1, 3)
+```
+
+`start` 和 `end` 参数为负数，则位置从右往左计数：
+```{r}
+str_sub(x, -3, -1)
+```
+
+位置索引超过字符串的长度也不会报错：
+```{r}
+str_sub("a", 1, 5)
+```
+
+`str_sub()` 也可以用于赋值：
+```{r}
+str_sub(x, 1, 1) <- str_to_lower(str_sub(x, 1, 1))
+x
+```
+
+## 2.4 `Locales` 参数
+`str_to_lower()` 、 `str_to_upper()` 、 `str_to_title()` 可以改变字符串的大小写，但是每种语言的字符串更改大小写的规则不同，因而就需要设定 `locale` 参数。例如，土耳其语中有加点和不加点两种小写字母 i，它们的大写字母都不同。
+```
+# Turkish has two i's: with and without a dot, and it
+# has a different rule for capitalising them:
+str_to_upper(c("i", "ı"))
+```
+```
+#> [1] "I" "I"
+```
+
+```
+str_to_upper(c("i", "ı"), locale = "tr")
+```
+```
+#> [1] "İ" "I"
+```
+
+`locale` 参数的值是语言别称，由2个或3个字母构成，命名规则遵循 ISO639 标准，详见[代码列表](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)。如果未设置 `locale` 参数，则使用当前操作系统的默认设置。
+
+设置 `locale` 参数对排序的结果也有影响。 `R` 中的 `order()` 和 `sort()` 会使用当前操作系统的默认 `locale` ，更换操作系统可能导致结果不一致。因此，使用 `str_sort()` 、 `str_order()` 配合 `locale` 参数可以确保获得一致的结果。
+```{r}
+x <- c("apple", "eggplant", "banana")
+
+str_sort(x, locale = "en")  # English
+```
+```{r}
+str_sort(x, locale = "haw") # Hawaiian
+```
+
+# 3 用正则表达式匹配模式
+`str_view()` 和 `str_view_all()` 接受一个字符向量和一个正则表达式，能返回匹配的结果。
+
+## 3.1 基本匹配
+```{r}
+x <- c("apple", "banana", "pear")
+str_view(x, "an")
+```
+
+`.` 能够匹配任意单个字符（除了 `\n` 换行符以外）
+```{r}
+str_view(x, ".a.")
+```
+
+
+`.` 的正则表达式是 `\.` ，但是由于正则表达式要用字符串表示，而字符串中 `\` 是转义字符，所以用字符串 `"\\."` 表示 `.` 的正则表达式。如下： `"\\."` 作为字符串代表 `\.` ， 作为正则表达式匹配 `.`。
+```{r}
+dot <- "\\."
+writeLines(dot)
+```
+```{r}
+str_view(c("abc", "a.c", "bef"), "a\\.c")
+```
+
+`\` 的字符串是 `"\\"` ， `\` 的正则表达式是 `"\\\\"`。
+```{r}
+x <- "a\\b"
+writeLines(x)
+```
+```{r}
+str_view(x, "\\\\")
+```
+ 
+## 3.2 位置匹配
++ `^` ：从字符串的开头匹配
++ `$` ：从字符串的结尾匹配
+
+```{r}
+x <- c("apple", "banana", "pear")
+str_view(x, "^a")
+```
+```{r}
+str_view(x, "a$")
+```
+用以下口诀帮助记忆：if you begin with power (`^`), you end up with money (`$`).  
+
++ 同时使用 `^` 和 `$` ，让正则表达式匹配整个字符串：
+```{r}
+x <- c("apple pie", "apple", "apple cake")
+str_view(x, "apple")
+```
+```{r}
+str_view(x, "^apple$")
+```
+
++ 单词中间的空格用 `\b` 匹配，因此 `\b` 可以匹配单词的开始或结束。
+
+## 3.3 字符类与替换  
+
+### 3.3.1 字符类
++ `\d`：匹配任意单个数字
++ `\s`: 匹配任意空白符（即 space, tab, newline）
++ `[abc]`：匹配 a, b, c
++ `[^abc]`：匹配除a, b, c 外的任意字符
+
+正则表达式 `\d` 和 `\s` 用字符串 `"\\d"` 和 `"\\s"` 表示
+
+### 3.3.2 替换
+用 `|` 表示替换。由于 `|` 的运算优先级很低，所以 `abc|xyz` 匹配 `abc` 或 `xyz` 而非 `abcyz` 或 `abxyz` 。
+
+```{r}
+str_view(c("grey", "gray"), "gr(e|a)y")
+```
+
+## 3.4 重复
++ `?`：重复0次或1次
++ `+`：重复1次或更多次
++ `*`：重复0次或更多次
+
+```{r}
+x <- "1888 is the longest year in Roman numerals: MDCCCLXXXVIII"
+str_view(x, "CC?")
+```
+
+```{r}
+str_view(x, "CC+")
+```
+
+```{r}
+str_view(x, 'C[LX]+')
+```
+
+重复操作符的运算优先级很高，所以 `colou?r` 可以匹配 `color` 或` colour` 。
+
+可以设定匹配重复的次数：  
+
++ `{n}`：n次
++ `{n,}`：n次或更多次
++ `{,m}`：最多m次
++ `{n,m}`：n次和m次之间
+
+```{r}
+str_view(x, "C{2}")
+```
+
+```{r}
+str_view(x, "C{2,}")
+```
+
+```{r}
+str_view(x, "C{2,3}")
+```
+
+默认情况下，重复匹配是贪婪的：尽量匹配最长的字符串，在其后加上 `?` 可以让其尽量匹配最短的字符串。
+```{r}
+str_view(x, 'C{2,3}?')
+```
+
+```{r}
+str_view(x, 'C[LX]+?')
+```
+
+## 3.5 分组和后向引用
+`()` 可以用来表示分组， `\1` 代表分组1匹配的文本， `\2` 代表分组2匹配的文本，以此类推。例如，以下正则表达式匹配重复的两个字母。
+```{r}
+str_view(fruit, "(..)\\1", match = TRUE)
+```
+
+# 4 正则表达式函数
+## 4.1 判断是否匹配
++ `str_detect()` 用来判断字符向量是否匹配某个模式，并返回逻辑向量：
+```{r}
+x <- c("apple", "banana", "pear")
+str_detect(x, "e")
+```
+计算有多少个单词以 t 开头：
+```{r}
+sum(str_detect(words, "^t"))
+```
+
+计算有多少比例的单词以元音结尾：
+```{r}
+mean(str_detect(words, "[aeiou]$"))
+```
+
+对于复杂的逻辑判断，简单的方法是写出多个 `str_detect()` ，再将它们组合起来，而非写一个非常复杂的正则表达式。例如，以下两种方法都可以找出不含元音字母的单词，但是第一种方法要简单许多：
+```{r}
+# Find all words containing at least one vowel, and negate
+no_vowels_1 <- !str_detect(words, "[aeiou]")
+# Find all words consisting only of consonants (non-vowels)
+no_vowels_2 <- str_detect(words, "^[^aeiou]+$")
+identical(no_vowels_1, no_vowels_2)
+```
+
++ 通过 `str_detect()` 可以选出向量中匹配模式的元素，通过 `str_subset()` 也可以做到：
+```{r}
+words[str_detect(words, "x$")]
+```
+
+```{r}
+str_subset(words, "x$")
+```
+
++ 如果字符串是数据框中的一列，可以通过 `filter()` 筛选：
+```{r}
+df <- tibble(
+  word = words, 
+  i = seq_along(word)
+)
+
+df %>% 
+  filter(str_detect(words, "x$"))
+```
+```
+#> # A tibble: 4 × 2
+#>    word     i
+#>   <chr> <int>
+#> 1   box   108
+#> 2   sex   747
+#> 3   six   772
+#> 4   tax   841
+```
+
++ `str_count()` 返回每个元素中有多少个匹配：
+```{r}
+x <- c("apple", "banana", "pear")
+str_count(x, "a")
+```
+计算平均每个单词里有多少个元音字母：
+```{r}
+mean(str_count(words, "[aeiou]"))
+```
+`str_count()` 和 `mutate` 合用：
+```{r}
+df %>% 
+  mutate(
+    vowels = str_count(word, "[aeiou]"),
+    consonants = str_count(word, "[^aeiou]")
+  )
+```
+```
+#> # A tibble: 980 × 4
+#>       word     i vowels consonants
+#>      <chr> <int>  <int>      <int>
+#> 1        a     1      1          0
+#> 2     able     2      2          2
+#> 3    about     3      3          2
+#> 4 absolute     4      4          4
+#> 5   accept     5      2          4
+#> 6  account     6      3          4
+#> # ... with 974 more rows
+```
+
++ 匹配不会重叠，例如： `"abababa"` 中匹配 `"aba"` 2次而非3次：
+```{r}
+str_count("abababa", "aba")
+```
+```{r}
+str_view_all("abababa", "aba")
+```
+
+## 4.2 提取匹配内容
+`str_extract()` 提取与模式相匹配的内容。使用 `stringr::sentences` 作为语料：
+```{r}
+length(sentences)
+```
+```{r}
+head(sentences)
+```
+
+我们想要找出所有包含颜色的句子，步骤如下：
+
++ 1 创建一个包含颜色的字符向量，并将其转化为正则表达式
+```{r}
+colours <- c("red", "orange", "yellow", "green", "blue", "purple")
+colour_match <- str_c(colours, collapse = "|")
+colour_match
+```
+
++ 2 找出包含颜色的句子
+```{r}
+has_colour <- str_subset(sentences, colour_match)
+
+head(has_colour)
+```
+
++ 3 提取出这些句子包含的颜色
+```{r}
+matches <- str_extract(has_colour, colour_match)
+head(matches)
+```
+
+`str_extract()` 只会提取第一个匹配，可以通过以下2种方法查看存在一个以上匹配的句子：  
+
++ `str_view_all()`
+```{r}
+more <- sentences[str_count(sentences, colour_match) > 1]
+str_view_all(more, colour_match)
+```
+
++ `str_extract_all()` 默认返回一个列表
+```{r}
+str_extract_all(more, colour_match)
+```
+
+设置参数 `simplify = TRUE` ， `str_extract_all()` 会返回矩阵，矩阵的宽度是匹配最多的个数
+```{r}
+str_extract_all(more, colour_match, simplify = TRUE)
+```
+
+```{r}
+x <- c("a", "a b", "a b c")
+str_extract_all(x, "[a-z]", simplify = TRUE)
+```
+
+## 4.3 分组匹配
+从句子中提取名词，假设 "a" 和 "the" 后紧跟的都是名词：
+```{r}
+noun <- "(a|the) ([^ ]+)"
+
+has_noun <- sentences %>%
+  str_subset(noun) %>%
+  head(10)
+has_noun %>% 
+  str_extract(noun)
+```
+
+`str_extract()` 将匹配的内容完整地提取出来， `str_match()` 会给出匹配中的每个分组，并用矩阵返回。第一列是匹配的完整内容，后面的列是每一个分组的内容。
+```{r}
+has_noun %>% 
+  str_match(noun)
+```
+
+如果数据以 `tibble` 形式存在， `tidyr::extract()` 也可以达到同样的目的，不同之处是需要给每一列命名：
+```{r}
+tibble(sentence = sentences) %>% 
+  tidyr::extract(
+    sentence, c("article", "noun"), "(a|the) ([^ ]+)", 
+    remove = FALSE
+  )
+```
+```
+#> # A tibble: 720 × 3
+#>                                      sentence article    noun
+#> *                                       <chr>   <chr>   <chr>
+#> 1  The birch canoe slid on the smooth planks.     the  smooth
+#> 2 Glue the sheet to the dark blue background.     the   sheet
+#> 3      It's easy to tell the depth of a well.     the   depth
+#> 4    These days a chicken leg is a rare dish.       a chicken
+#> 5        Rice is often served in round bowls.    <NA>    <NA>
+#> 6       The juice of lemons makes fine punch.    <NA>    <NA>
+#> # ... with 714 more rows
+```
+使用 `str_match_all()` 能够返回每一个字符串的所有匹配。
+
+
+## 4.4 替换匹配内容
++ `str_replace()` 和 `str_replace_all()` 可以用新的字符串替换匹配到的内容：
+```{r}
+x <- c("apple", "pear", "banana")
+str_replace(x, "[aeiou]", "-")
+```
+```{r}
+str_replace_all(x, "[aeiou]", "-")
+```
+
++ 使用 `str_replace_all()` 可以进行多重替换：
+```{r}
+x <- c("1 house", "2 cars", "3 people")
+str_replace_all(x, c("1" = "one", "2" = "two", "3" = "three"))
+```
+
++ 使用分组和后向引用可以在匹配到的内容中插入新内容，或者更换分组匹配的顺序：
+```{r}
+sentences %>% 
+  str_replace("([^ ]+) ([^ ]+) ([^ ]+)", "\\1 \\3 \\2") %>% 
+  head(5)
+```
+
+## 4.5 按匹配切分
++ 使用 `str_split()` 对字符串进行切分。例如，将句子切分为单词：
+```{r}
+sentences %>%
+  head(5) %>% 
+  str_split(" ")
+```
+
++ 结果用 list 形式返回，如果原字符向量长度为1，则返回的列表长度也为1，可以做以下提取：
+```{r}
+"a|b|c|d" %>% 
+  str_split("\\|") %>% 
+  .[[1]]
+```
+
++ 设置 `simplify = TRUE` 参数返回矩阵：
+```{r}
+sentences %>%
+  head(5) %>% 
+  str_split(" ", simplify = TRUE)
+```
+
++ 设置 `n` 参数限制切分的次数：
+```{r}
+fields <- c("Name: Hadley: Hadley", "Country: NZ", "Age: 35")
+fields %>% str_split(": ", n = 2, simplify = TRUE)
+```
+
++ 用 `boundary()` 函数可以将语料按字符、行、句子、单词切分：
+```{r}
+x <- "This is a sentence.  This is another sentence."
+str_view_all(x, boundary("word"))
+```
+```{r}
+str_split(x, " ")[[1]]
+```
+```{r}
+str_split(x, boundary("character"))[[1]]
+```
+```{r}
+str_split(x, boundary("word"))[[1]]
+```
+```{r}
+str_split(x, boundary("sentence"))[[1]]
+```
+```{r}
+str_split(x, boundary("line"))[[1]]
+```
+
+## 4.6 定位匹配的位置
+`str_locate()` 和 `str_locate_all()` 会给出每个匹配的起始点的位置。可以使用 `str_locate()` 来寻找匹配，使用 `str_sub()` 提取、修改匹配的内容。
+
+# 5 其他类型的模式匹配
+## 5.1 `regax()` 的参数
+当你使用字符串来表示正则表达式时，该字符串实际上自动被封装在 `regax()` 中：
+```{r}
+# The regular call:
+str_view(head(fruit), "nana")
+```
+
+```{r}
+# Is shorthand for
+str_view(head(fruit), regex("nana"))
+```
+
+因此，可以借助 `regax()` 的参数来控制匹配的细节：  
+
++ `ignore_case = TRUE` ：匹配时不区分大小写
+```{r}
+bananas <- c("banana", "Banana", "BANANA")
+str_view(bananas, "banana")
+```
+```{r}
+str_view(bananas, regex("banana", ignore_case = TRUE))
+```
+
++ `multiline = TRUE` ：使 `^` 和 `$` 匹配每一行的开头、结尾，而不是整个字符串的开头、结尾
+```{r}
+x <- "Line 1\nLine 2\nLine 3"
+str_extract_all(x, "^Line")[[1]]
+```
+```{r}
+str_extract_all(x, regex("^Line", multiline = TRUE))[[1]]
+```
+
++ `comments = TRUE` ：允许在正则表达式中添加注释和空格，空格和 `#` 后的内容会被忽略，空格需要用 `\\ ` 匹配
+```{r}
+phone <- regex("
+  \\(?     # optional opening parens
+  (\\d{3}) # area code
+  [)- ]?   # optional closing parens, dash, or space
+  (\\d{3}) # another three numbers
+  [ -]?    # optional space or dash
+  (\\d{3}) # three more numbers
+  ", comments = TRUE)
+
+str_match("514-791-8141", phone)
+```
+
++ `dotall = TRUE` ：允许 `.` 匹配所有字符，包括 `\n`
+
+## 5.2 其他类型的匹配函数
+还有以下3个函数可以替代 `regax()` ：  
+
++ `fixed()` 在很低的层面进行严格匹配，匹配速度比正则表达式更快：  
+
+```{r}
+microbenchmark::microbenchmark(
+  fixed = str_detect(sentences, fixed("the")),
+  regex = str_detect(sentences, "the"),
+  times = 20
+)
+```
+
+`fixed()` 在匹配非英文字符时会遇到问题。例如， "á" 有两种输入方式，进行严格匹配时会出现问题：
+```{r}
+a1 <- "\u00e1"
+a2 <- "a\u0301"
+```
+```
+c(a1, a2)
+```
+```
+#> [1] "á" "á"
+```
+```{r}
+a1 == a2
+```
+```{r}
+str_detect(a1, fixed(a2))
+```
+
++ `coll()` 使用 standard collation rules 进行匹配，由于各种语言的匹配规则有所区别，可以使用 `locale` 参数选择匹配的语言：  
+
+```
+# That means you also need to be aware of the difference
+# when doing case insensitive matches:
+i <- c("I", "İ", "i", "ı")
+i
+```
+```
+#> [1] "I" "İ" "i" "ı"
+```
+
+```
+str_subset(i, coll("i", ignore_case = TRUE))
+```
+```
+#> [1] "I" "i"
+```
+
+```
+str_subset(i, coll("i", ignore_case = TRUE, locale = "tr"))
+```
+```
+#> [1] "İ" "i"
+```
+
+`fixed()` 和 `regex()` 都有 `ignore_case` 参数，但没有 `locale` 参数，它们都使用默认locale。使用下列命令可以查看当前默认的locale：
+```{r}
+stringi::stri_locale_info()
+```
+
+`coll()` 的缺点在于运行速度最慢。
+
++ `boundary()` 可以与 `str_split()` 以外的函数联用：
+```{r}
+x <- "This is a sentence."
+str_view_all(x, boundary("word"))
+```
+
+```{r}
+str_extract_all(x, boundary("word"))
+```
+
+# 6 正则表达式的其他用途
+`R` 中有2个函数也会用到正则表达式：  
+
++ `apropos()` 从当前环境中寻找所有能够匹配的对象，可以用去想不起函数名字的情况：
+```{r}
+apropos("replace")
+```
+
++ `dir()` 中的 `pattern` 参数能够接受正则表达式，找到所有能够匹配的文件。例如，找出所有 R Markdown 文件：
+```{r}
+head(dir(pattern = "\\.Rmd$"))
+```
+
+# 7 `stringi`
+`stringr` 建立于 `stringi` 的基础上， `stringi` 中有234个函数，而 `stringr` 则只有42个函数。 `stringi` 中的函数种类更为丰富，能够实现的功能也更多。两个包中函数的主要区别在于前缀分别为 `str_` 和 `stri_` 。
