@@ -51,6 +51,3 @@ devtools::session_info(c("tidyverse"))
 # 4 线上资源
 An online version of this book is available at http://r4ds.had.co.nz.  
 The source of the book is available at https://github.com/hadley/r4ds. 
-
-
-
