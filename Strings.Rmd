@@ -27,7 +27,7 @@ output: html_notebook
     + 5.1 `regax()` 的参数
     + 5.2 其他类型的匹配函数
 + 6 正则表达式的其他用途
-7 `stringi`
++ 7 `stringi`
 
 # 1 前提准备
 ```{r}
@@ -79,7 +79,7 @@ x <- "\u00b5"
 x
 ```
 ```
-#> [1] "µ"
+#> [1] "?0?8"
 ```
 
 + 多个字符串通常保存在字符向量中：
@@ -173,17 +173,17 @@ x
 ```
 # Turkish has two i's: with and without a dot, and it
 # has a different rule for capitalising them:
-str_to_upper(c("i", "ı"))
+str_to_upper(c("i", "?0?3"))
 ```
 ```
 #> [1] "I" "I"
 ```
 
 ```
-str_to_upper(c("i", "ı"), locale = "tr")
+str_to_upper(c("i", "?0?3"), locale = "tr")
 ```
 ```
-#> [1] "İ" "I"
+#> [1] "?0?2" "I"
 ```
 
 `locale` 参数的值是语言别称，由2个或3个字母构成，命名规则遵循 ISO639 标准，详见[代码列表](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)。如果未设置 `locale` 参数，则使用当前操作系统的默认设置。
@@ -674,11 +674,11 @@ str_detect(a1, fixed(a2))
 ```
 # That means you also need to be aware of the difference
 # when doing case insensitive matches:
-i <- c("I", "İ", "i", "ı")
+i <- c("I", "?0?2", "i", "?0?3")
 i
 ```
 ```
-#> [1] "I" "İ" "i" "ı"
+#> [1] "I" "?0?2" "i" "?0?3"
 ```
 
 ```
@@ -692,7 +692,7 @@ str_subset(i, coll("i", ignore_case = TRUE))
 str_subset(i, coll("i", ignore_case = TRUE, locale = "tr"))
 ```
 ```
-#> [1] "İ" "i"
+#> [1] "?0?2" "i"
 ```
 
 `fixed()` 和 `regex()` 都有 `ignore_case` 参数，但没有 `locale` 参数，它们都使用默认locale。使用下列命令可以查看当前默认的locale：
