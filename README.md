@@ -23,10 +23,10 @@
 	+ 日期和时间
 + **Program**  
 ![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-program.png)
-	+ Pipes
+	+ 管道操作符
 	+ 函数
 	+ 向量
-	+ 迭代
+	+ 循环
 + **Model**  
 ![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-model.png)
 	+ Model basics
