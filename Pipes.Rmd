@@ -1,0 +1,233 @@
+---
+title: "管道操作符"
+output: html_notebook
+---
+
+# 目录
++ 1 前提准备
++ 2 编写代码的不同方式
+    + 2.1 将每个中间步骤都保存为一个新的对象
+    + 2.2 每个中间步骤都覆盖最初的对象
+    + 2.3 组合每个函数
+    + 2.4 使用管道操作符
++ 3 何时不要使用管道操作符
++ 4 `magrittr` 中的其他工具
+
+# 1 前提准备
+管道操作符 `%>%` 来自 `magrittr` 包， `tidyverse` 包会自动加载 `%>%` 。如果单独使用  `%>%` ，则需要手动加载 `magrittr` 包。
+```{r}
+library(magrittr)
+```
+
+# 2 编写代码的不同方式
+用不同的方式将以下儿歌编写成代码：
+```
+Little bunny Foo Foo
+Went hopping through the forest
+Scooping up the field mice
+And bopping them on the head
+```
+
+首先定义一个代表兔子 Foo Foo 的对象：
+```
+foo_foo <- little_bunny()
+```
+
+然后对每一个动作定义一个函数：`hop()`, `scoop()`, `bop()` 。
+
+
+使用以上对象和函数，可以有至少4种方式将儿歌编写成代码：  
+
++ 1 每个中间步骤都创建一个新的对象
+
++ 2 每个中间步骤都覆盖最初的对象
+
++ 3 组合每个函数
+
++ 4 使用管道操作符
+
+
+## 2.1 将每个中间步骤都保存为一个新的对象
+最简单的方法就是每个中间步骤都创建一个新的对象：
+```
+foo_foo_1 <- hop(foo_foo, through = forest)
+foo_foo_2 <- scoop(foo_foo_1, up = field_mice)
+foo_foo_3 <- bop(foo_foo_2, on = head)
+```
+这种方式存在2个潜在的问题：  
+
++ 可能会产生大量包含后缀的中间变量名（ 如`foo_foo_1` ），在命名和使用时会产生混淆
+
++ 可能会产生大量的数据拷贝，导致内存问题
+
+其中，第2个问题并不是个严重的问题：  
+
++ 在真正发生内存问题前，担忧内存问题是没有必要的
+
++ `R` 会自动识别某列是否可以跨表共享，并据此尽量节省内存；只有增加或修改的列时，才会产生一个新的拷贝。以 `ggplot2::diamonds` 数据集为例：
+
+`diamonds2` 比 `diamonds` 多1列，2个数据集占用的总内存与 `diamonds2` 占用的内存相同：
+```{r}
+diamonds <- ggplot2::diamonds
+diamonds2 <- diamonds %>% 
+  dplyr::mutate(price_per_carat = price / carat)
+```
+```{r}
+library(pryr)
+```
+```{r}
+pryr::object_size(diamonds)
+```
+```{r}
+pryr::object_size(diamonds2)
+```
+```{r}
+pryr::object_size(diamonds, diamonds2)
+```
+
+ `R` 只会拷贝增加或修改的列，对 `diamonds` 也进行修改后，2个数据集占用的总内存比 `diamonds2` 、 `diamonds` 占用的内存要大：
+
+```{r}
+diamonds$carat[1] <- NA
+pryr::object_size(diamonds)
+```
+```{r}
+pryr::object_size(diamonds2)
+```
+```{r}
+pryr::object_size(diamonds, diamonds2)
+```
+
+注意： `pryr::object_size()` 可以计算多个对象一共占用了多少内存，而 `R` 内置的 `object.size()` 只能计算单个对象占用了多少内存。
+
+## 2.2 每个中间步骤都覆盖最初的对象
+```
+foo_foo <- hop(foo_foo, through = forest)
+foo_foo <- scoop(foo_foo, up = field_mice)
+foo_foo <- bop(foo_foo, on = head)
+```
+
+这种方式存在2个问题：  
+
++ Debugging 会非常麻烦，每次发现错误都需要重新运行整个程序
+
++ 同样的对象会出现很多次，容易混淆每个步骤到底发生了什么
+
+## 2.3 组合每个函数
+不进行对象到变量名的赋值，仅仅将函数组合起来
+```
+bop(
+  scoop(
+    hop(foo_foo, through = forest),
+    up = field_mice
+  ), 
+  on = head
+)
+```
+
+缺点在于需要从内往外、从右往左阅读代码，理解代码非常困难。
+
+## 2.4 使用管道操作符
+```
+foo_foo %>%
+  hop(through = forest) %>%
+  scoop(up = field_mouse) %>%
+  bop(on = head)
+```
+
+你可以将很容易地自上而下、从左往右阅读代码， `%>%` 在底层所做的工作类似如下代码：
+```
+my_pipe <- function(.) {
+  . <- hop(., through = forest)
+  . <- scoop(., up = field_mice)
+  bop(., on = head)
+}
+my_pipe(foo_foo)
+```
+
+这意味着管道操作符不适用以下两类函数：  
+
++ 使用当前环境的函数。例如， `assign()` 会在当前环境下使用给定变量名创建一个新变量：
+```{r}
+assign("x", 10)
+
+x
+```
+
+```{r}
+"x" %>% assign(100)
+
+x
+```
+
+`%>%` 只会在临时环境中创建一个临时变量。如果想合用 `%>%` 和 `assign()` ，必须显式指定环境：
+```{r}
+env <- environment()
+"x" %>% assign(100, envir = env)
+
+x
+```
+
+其他会产生此类问题的函数还有 `get()` 、 `load()` 。
+
++ 使用惰性赋值的函数。在 `R` 中，函数中的参数在执行函数前不会被计算，只有在函数使用参数的时候才会计算，而 `%>%` 在每个步骤都会计算所有元素。例如， `tryCatch()` 函数可以捕捉和处理错误：
+```{r}
+tryCatch(stop("!"), error = function(e) "An error")
+```
+```{r}
+stop("!") %>% 
+  tryCatch(error = function(e) "An error")
+```
+
+其他会产生此类问题的函数还有 `try()` 、 `suppressMessages()` 、 `suppressWarnings()` 等。
+
+# 3 何时不要使用管道操作符
+以下情况不适合使用管道操作符：  
+
++ 管道操作符包含10个以上步骤。  
+建议为中间对象创建新变量，并赋予有意义的命名。类似于设置断点，方便检查程序中的错误和理解代码的含义。
+
++ 存在多重输入和输出。  
+如果没有一个最主要的对象，程序中有两到三个对象组合到一起，建议不要使用管道操作符。
+
++ 对象间有复杂的以来结构。  
+管道操作符适用于线性操作，不适合表现变量间复杂的关系。
+
+
+# 4 `magrittr` 中的其他工具
++ `%T>%`  
+在某个中间步骤可能并会不产生新的对象，仅仅需要输出，如绘图、保存等等，如果使用 `%>%` 会导致流程终止。此时，必须使用 `%T>%` ：
+```{r}
+rnorm(100) %>%
+  matrix(ncol = 2) %>%
+  plot() %>%
+  str()
+```
+```{r}
+rnorm(100) %>%
+  matrix(ncol = 2) %T>%
+  plot() %>%
+  str()
+```
+
++ `%$%`  
+如果使用的函数不能接受 data frame ，例如仅仅接受向量，则必须使用 `%$%` ：
+
+```{r}
+mtcars %>%
+  cor(disp, mpg)
+```
+```{r}
+mtcars %$%
+  cor(disp, mpg)
+```
+
++ `%<>%`  
+`%<>%` 可以方便地进行赋值，但是为了让代码更为清晰，还是建议使用 `<-` 进行赋值：
+```{r}
+mtcars <- mtcars %>% 
+  transform(cyl = cyl * 2)
+```
+```{r}
+mtcars %<>% transform(cyl = cyl * 2)
+```
