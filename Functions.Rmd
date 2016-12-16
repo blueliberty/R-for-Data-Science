@@ -1,0 +1,586 @@
+---
+title: "函数"
+output: html_notebook
+---
+
+# 目录
++ 1 介绍
+    + 1.1 前提准备
++ 2 何时应该编写函数
+    + 2.1 避免多次复制粘贴
+    + 2.2 方便修改程序
++ 3 编写适合阅读的函数
++ 4 条件语句
+    + 4.1 条件
+    + 4.2 多重条件
+    + 4.3 代码风格
++ 5 函数参数
+    + 5.1 选择合适的参数名
+    + 5.2 检查参数值
+    + 5.3 `...`
+    + 5.4 惰性求值
++ 6 返回函数值
+    + 6.1 显式 `return` 语句
+    + 6.2 编写可以使用管道操作符的函数
++ 7 环境
+
+# 1 介绍
+编写函数相比复制粘贴代码，有三个好处：  
+
++ 可以给函数命名，从而使代码更容易理解
+
++ 更改程序，只需要在函数中更新代码，不需要更新多处代码
+
++ 避免了由于多次复制粘贴而引发的错误
+
+## 1.1 前提准备
+```{r}
+library(tidyverse)
+```
+
+
+# 2 何时应该编写函数
+## 2.1 避免多次复制粘贴
+如果你复制粘贴代码超过两次，就应该考虑编写函数。例如：
+```{r}
+df <- tibble::tibble(
+  a = rnorm(10),
+  b = rnorm(10),
+  c = rnorm(10),
+  d = rnorm(10)
+)
+
+df$a <- (df$a - min(df$a, na.rm = TRUE)) / 
+  (max(df$a, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+df$b <- (df$b - min(df$b, na.rm = TRUE)) / 
+  (max(df$b, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+df$c <- (df$c - min(df$c, na.rm = TRUE)) / 
+  (max(df$c, na.rm = TRUE) - min(df$c, na.rm = TRUE))
+df$d <- (df$d - min(df$d, na.rm = TRUE)) / 
+  (max(df$d, na.rm = TRUE) - min(df$d, na.rm = TRUE))
+```
+
+以上代码的目的是将变量归一化到[0, 1]区间，但是在复制粘贴的过程中，对 `df$b` 进行归一化的代码出现了错误：忘记将 `a` 改成 `b` 。因此将重复的代码编写成函数可以防止发生这类错误。
+
++ 首先需要分析这段代码，看看有哪些输入变量：
+```{r}
+(df$a - min(df$a, na.rm = TRUE)) /
+  (max(df$a, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+```
+
++ 只有 `df$a` 一个输入变量，将其用临时变量代替：
+```{r}
+x <- df$a
+(x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+```
+
++ 将中间计算过程（此处为极差）命名为变量，可以让代码更加清晰：
+```{r}
+rescale01 <- function(x) {
+  rng <- range(x, na.rm = TRUE)
+  (x - rng[1]) / (rng[2] - rng[1])
+}
+rescale01(c(0, 5, 10))
+```
+
+总结下来，创建一个函数有三个关键步骤：  
+
++ 1 需要为函数选择一个直观的函数名 `name`
+
++ 2 列出所有的输入变量，即参数 `arguments`
+
++ 3 将编写的代码放入函数体 `body` ，用花括号 `{}` 包裹
+
+函数编写好以后，需要对其进行一些测试：
+```{r}
+rescale01(c(-10, 0, 10))
+```
+```{r}
+rescale01(c(1, 2, 3, NA, 5))
+```
+
+至此，最初的那段代码可以改写成如下函数形式：
+```{r}
+df$a <- rescale01(df$a)
+df$b <- rescale01(df$b)
+df$c <- rescale01(df$c)
+df$d <- rescale01(df$d)
+```
+
+以上代码仍然存在一定的重复，可以用循环避免这种重复。
+
+## 2.2 方便修改程序
+当需求发生改变时，只需要改变函数中的代码。例如，我们发生变量中存在无穷大的值，会导致程序出错：
+```{r}
+x <- c(1:10, Inf)
+rescale01(x)
+```
+
+可以很方便地对函数进行修改：
+```{r}
+rescale01 <- function(x) {
+  rng <- range(x, na.rm = TRUE, finite = TRUE)
+  (x - rng[1]) / (rng[2] - rng[1])
+}
+rescale01(x)
+```
+
+这就是很重要的准则： do not repeat yourself ，也即 DRY 准则。
+
+
+# 3 编写适合阅读的函数
+函数名最好使用动词，应该简短并且能够直观反映函数的功能，但是也要避免使用 get, compute, calculate, determine 这类常规动词，而参数则尽量使用名词。以下举几个应该避免的例子：
+```
+# Too short
+f()
+```
+```
+# Not a verb, or descriptive
+my_awesome_function()
+```
+```
+# Long, but clear
+impute_missing()
+collapse_years()
+```
+
+如果函数名中有多个单词，可以使用 snake_case 或 camelCase 的形式，但是要注意保持前后规则一致，不要同时使用两种命名方式：
+```
+# Never do this!
+col_mins <- function(x, y) {}
+rowMaxes <- function(y, x) {}
+```
+
+如果要创建一个函数族，以实现一系列的功能，就要保证这些函数有一致的函数名和参数。给这些函数添加相同的前缀，这样在 `R` 中输入前缀后，自动补全的功能就会显示出该函数族中所有的函数：
+```
+# Good
+input_select()
+input_checkbox()
+input_text()
+
+# Not so good
+select_input()
+checkbox_input()
+text_input()
+```
+
+给函数和变量命名时，尽量不要覆盖已有的函数和变量：
+```
+# Don't do this!
+T <- FALSE
+c <- 10
+mean <- function(x) sum(x)
+```
+
+如果你无法理解一段代码的含义，可以尝试以下方式来改写代码：  
+
++ 添加一些中间变量，并赋予有意义的命名
++ 将一个函数拆分出多个小函数，并赋予有意义的命名
++ 使用 `#` 开头的注释来解释代码的含义
+
+还可以使用用很长的 `-` 或 `=`将代码切分成不同代码块：
+```
+# Load data --------------------------------------
+
+# Plot data --------------------------------------
+```
+
+在 Rstudio 中使用（`Cmd/Ctrl + Shift + R`）快捷键，可以很方便地进行此种切分，并且在编辑器的左下角会显示导航：  
+
+![](https://github.com/blueliberty/R-for-Data-Science/blob/master/Pictures/rstudio-nav.png?raw=true)
+
+# 4 条件语句
+`if` 语句使你可以有条件地执行代码，键入 ?\`if\` 可以得到 `if` 的帮助文档：
+```
+if (condition) {
+  # code executed when condition is TRUE
+} else {
+  # code executed when condition is FALSE
+}
+```
+
+以下函数可以判断向量中的每个元素是否有命名，该函数中并没有 `return` 语句，函数默认返回最后计算的值：
+```{r}
+has_name <- function(x) {
+  nms <- names(x)
+  if (is.null(nms)) {
+    rep(FALSE, length(x))
+  } else {
+    !is.na(nms) & nms != ""
+  }
+}
+```
+
+## 4.1 条件
+`condition` 必须返回标量 `TRUE` 或 `FALSE` 。如果返回了向量，会得到一个 warning ，如果返回了 `NA` ，会得到一个 error ：
+```{r}
+if (c(TRUE, FALSE)) {}
+```
+```{r}
+if (NA) {}
+```
+
+`||` 和 `&&` 是用于标量的逻辑运算符，因而可以用于 `if` 语句，但是不可以在 `if` 语句中使用 `|` 或 `&` ，因而它们是向量逻辑运算符。如果在 `if` 语句中使用了逻辑向量，可以使用 `any()` 或 `all()` 将其转化为标量。
+
+`==` 也是向量运算符，所以在 `if` 语句中使用 `==` 必须注意返回的值长度为1，否则要用 `any()` 或 `all()` 将其转化为标量。 `identical()` 总是会返回标量 `TRUE` 或 `FALSE` ，但是在数据类型不一致时可能会产生问题：
+```{r}
+identical(0L, 0)
+```
+
+还需要考虑浮点数的精度问题：
+```{r}
+x <- sqrt(2) ^ 2
+x
+```
+```{r}
+x == 2
+```
+```{r}
+x - 2
+```
+
+可以使用 `dplyr::near()` 来进行上述比较：
+```{r}
+dplyr::near(x, 2)
+```
+
+## 4.2 多重条件
+多重条件语句可以链式连接：
+```
+if (this) {
+  # do that
+} else if (that) {
+  # do something else
+} else {
+  # 
+}
+```
+
+如果条件个数非常多，可以使用 `switch()` 函数：
+```
+#> function(x, y, op) {
+#>   switch(op,
+#>     plus = x + y,
+#>     minus = x - y,
+#>     times = x * y,
+#>     divide = x / y,
+#>     stop("Unknown op!")
+#>   )
+#> }
+```
+
+## 4.3 代码风格
+```
+# Good
+if (y < 0 && debug) {
+  message("Y is negative")
+}
+
+if (y == 0) {
+  log(x)
+} else {
+  y ^ x
+}
+
+# Bad
+if (y < 0 && debug)
+message("Y is negative")
+
+if (y == 0) {
+  log(x)
+} 
+else {
+  y ^ x
+}
+```
+
+# 5 函数参数
+函数的参数包括两类：提供数据源的 **`data`** 参数、提供函数运行细节的 **`detail`** 参数，例如：  
+
++ `log()` ：`x` 是 `data` 参数， `base` 是 `detail` 参数
+
++ `mean()` ：`x` 是 `data` 参数， `trim` 和 `na.rm` 是 `detail` 参数
+
++ `t.test()` ：`x` 和 `y` 是 `data` 参数， `alternative` 、 `mu` 、 `paired` 、 `var.equal` 、 `conf.level` 是 `detail` 参数
+
++ `str_c()` ：`...` 是 `data` 参数， `sep` 和 `collapse` 是 `detail` 参数
+
+通常， `data` 参数应该放在最前面， `detail` 参数应该在后面，并且设置默认值：
+```{r}
+# Compute confidence interval around mean using normal approximation
+mean_ci <- function(x, conf = 0.95) {
+  se <- sd(x) / sqrt(length(x))
+  alpha <- 1 - conf
+  mean(x) + se * qnorm(c(alpha / 2, 1 - alpha / 2))
+}
+```
+```{r}
+x <- runif(100)
+mean_ci(x)
+```
+```{r}
+mean_ci(x, conf = 0.99)
+```
+
+参数的默认值通常设置为最经常用到的值，但是也存在例外情况： 虽然 `na.rm = TRUE` 是最普遍的情况，但是 `na.rm` 还是应该将默认值设置为 `FALSE` ，因为缺失值非常重要，不能默认忽略缺失值：
+
+调用函数时，可以省略 `data` 参数的参数名。如果改变 `detail` 参数，必须使用参数名的全名：
+```
+# Good
+mean(1:10, na.rm = TRUE)
+
+# Bad
+mean(x = 1:10, , FALSE)
+mean(, TRUE, x = c(1:10, NA))
+```
+
+在调用函数时，函数内的 `=` 两边都要加上空格，逗号后面也要加上空格：
+```
+# Good
+average <- mean(feet / 12 + inches, na.rm = TRUE)
+
+# Bad
+average<-mean(feet/12+inches,na.rm=TRUE)
+```
+
+## 5.1 选择合适的参数名
+参数名应该能够清楚地表明参数的含义，以下是一些常用的参数名：  
+
++ `x` 、 `y` 、 `z`：向量
++ `w`：权重
++ `df`：数据框
++ `i` 、 `j`：索引（行和列）
++ `n`：长度或行数
++ `p`：列数
+尽量参考 `R` 中已有的参数名，如使用 `na.rm` 来决定是否移除缺失值。
+
+## 5.2 检查参数值
+调用函数时输入的参数有可能不符合函数要求，例如以下函数计算加权统计量：
+```{r}
+wt_mean <- function(x, w) {
+  sum(x * w) / sum(x)
+}
+wt_var <- function(x, w) {
+  mu <- wt_mean(x, w)
+  sum(w * (x - mu) ^ 2) / sum(w)
+}
+wt_sd <- function(x, w) {
+  sqrt(wt_var(x, w))
+}
+```
+
+如果 `x` 和 `w` 参数长度不同，由于 `R` 的自动补齐功能，程序并不会报错：
+```{r}
+wt_mean(1:6, 1:3)
+```
+
+因此，可以通过 `stop()` 函数对输入的参数值进行检查：
+```{r}
+wt_mean <- function(x, w) {
+  if (length(x) != length(w)) {
+    stop("`x` and `w` must be the same length", call. = FALSE)
+  }
+  sum(w * x) / sum(x)
+}
+```
+
+但是如果检查的流程过长，如下面的例子，为了增加一个 `na.rm` 参数，程序变得冗长，未免得不偿失：
+```{r}
+wt_mean <- function(x, w, na.rm = FALSE) {
+  if (!is.logical(na.rm)) {
+    stop("`na.rm` must be logical")
+  }
+  if (length(na.rm) != 1) {
+    stop("`na.rm` must be length 1")
+  }
+  if (length(x) != length(w)) {
+    stop("`x` and `w` must be the same length", call. = FALSE)
+  }
+  
+  if (na.rm) {
+    miss <- is.na(x) | is.na(w)
+    x <- x[!miss]
+    w <- w[!miss]
+  }
+  sum(w * x) / sum(x)
+}
+```
+
+可以使用 `stopifont()` 函数，它会检查是否所有参数都为 `TRUE` ，如果不是就会报错：
+```{r}
+wt_mean <- function(x, w, na.rm = FALSE) {
+  stopifnot(is.logical(na.rm), length(na.rm) == 1)
+  stopifnot(length(x) == length(w))
+  
+  if (na.rm) {
+    miss <- is.na(x) | is.na(w)
+    x <- x[!miss]
+    w <- w[!miss]
+  }
+  sum(w * x) / sum(x)
+}
+wt_mean(1:6, 6:1, na.rm = "foo")
+```
+
+## 5.3 `...`
+很多 `R` 中的函数可以接受任意个数的参数：
+```{r}
+sum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+```
+```{r}
+stringr::str_c("a", "b", "c", "d", "e", "f")
+```
+
+这种功能是通过参数 `...` 实现的，它可以接受任意个数的参数：
+```{r}
+commas <- function(...) stringr::str_c(..., collapse = ", ")
+commas(letters[1:10])
+```
+```{r}
+rule <- function(..., pad = "-") {
+  title <- paste0(...)
+  width <- getOption("width") - nchar(title) - 5
+  cat(title, " ", stringr::str_dup(pad, width), "\n", sep = "")
+}
+
+rule("Important output")
+```
+
+使用 `list(...)` 可以得到 `...` 参数的取值。
+
+`...` 的缺点在于参数如果拼写错误也不会报错，容易产生错误而不被发觉：
+```{r}
+x <- c(1, 2)
+sum(x, na.rm = TRUE)
+```
+```{r}
+x <- c(1, 2)
+sum(x, na.mr = TRUE)
+```
+
+## 5.4 惰性求值
+`R` 中的参数是惰性求值的，即它们只有在被使用时才会被计算。
+
+# 6 返回函数值
+## 6.1 显式 `return` 语句
+通常情况下，函数默认返回最后计算的值，但是也可以在函数结尾以外的地方使用 `return` 语句，通常用于与 `if` 语句合用以检查参数值：
+
+```{r}
+complicated_function <- function(x, y, z) {
+  if (length(x) == 0 || length(y) == 0) {
+    return(0)
+  }
+    
+  # Complicated code here
+}
+```
+
+```{r}
+f <- function() {
+  if (!x) {
+    return(something_short)
+  }
+
+  # Do 
+  # something
+  # that
+  # takes
+  # many
+  # lines
+  # to
+  # express
+}
+```
+
+与下面的函数写法相比，通过 `return` 语句将异常检测不通过的输出放在函数体的开始位置，可读性会更强
+```{r}
+f <- function() {
+  if (x) {
+    # Do 
+    # something
+    # that
+    # takes
+    # many
+    # lines
+    # to
+    # express
+  } else {
+    # return something short
+  }
+}
+```
+
+## 6.2 编写可以使用管道操作符的函数
+使用管道操作符的函数可以分为两种类型：  
+
++ 1 **transformation**：会有一个对象作为第一个参数传入函数，对该对象处理后再传出。例如 `dplyr` 和 `tidyr` 中的函数。如果你可以针对函数找到这样一个对象，那么该函数就可以使用管道操作符。
+
++ 2 **side-effect**：这类函数通常会执行一个动作，如绘图、保存等，而不会对传入的对象进行处理后再传出。对这类函数必须使用 `invisible()` 隐式传出输入的对象，才可以使用管道操作符。
+
+
+```{r}
+show_missings <- function(df) {
+  n <- sum(is.na(df))
+  cat("Missing values: ", n, "\n", sep = "")
+  
+  invisible(df)
+}
+```
+
+调用该函数，由于 `invisible()` 的作用， `df` 并没有被打印出来：
+```{r}
+show_missings(mtcars)
+```
+
+但是 `df` 实际上被返回，只是没有被打印：
+```{r}
+x <- show_missings(mtcars) 
+```
+```{r}
+class(x)
+```
+```{r}
+dim(x)
+```
+
+添加了`invisible()` 语句后就可以使用管道操作符了：
+```{r}
+mtcars %>% 
+  show_missings() %>% 
+  mutate(mpg = ifelse(mpg < 20, NA, mpg)) %>% 
+  show_missings() 
+```
+
+# 7 环境
+环境对函数的运行至关重要，它控制 `R` 如何找到某个变量的值。例如：
+```{r}
+f <- function(x) {
+  x + y
+} 
+```
+
+在很多编程语言中，由于函数中没有定义 `y` ，这段代码会报错。但是 R 采用 **lexical scoping rule** 来寻找变量的值。由于函数中没有定义 `y` ， R 会在定义函数的**环境中**寻找 `y` 的取值：
+```{r}
+y <- 100
+f(10)
+```
+```{r}
+y <- 1000
+f(10)
+```
+
+但这也可能会导致一些问题，例如，你可以改写 `+` 的作用：
+```{r}
+`+` <- function(x, y) {
+  if (runif(1) < 0.1) {
+    sum(x, y)
+  } else {
+    sum(x, y) * 1.1
+  }
+}
+
+table(replicate(1000, 1 + 2))
+```
+```{r}
+rm(`+`)
+```
