@@ -1,0 +1,587 @@
+---
+title: "日期和时间"
+output: html_notebook
+---
+
+# 目录
++ 1 前提准备
++ 2 创建日期/时间
+    + 2.1 字符串
+    + 2.2 独立的日期-时间元素
+    + 2.3 已有的日期/时间对象
++ 3 日期-时间元素
+    + 3.1 获取日期/时间元素
+    + 3.2 约整
+    + 3.3 设置日期/时间元素
++ 4 时间范围
+    + 4.1 Durations
+    + 4.2 Periods
+    + 4.3 Intervals
+    + 4.4 总结
++ 5 时区
+
+# 1 前提准备
+```{r}
+library(lubridate)
+```
+```{r}
+library(tidyverse)
+```
+```{r}
+library(nycflights13)
+```
+
+# 2 创建日期/时间
+一共有三种日期/时间数据类型：  
+
++ **日期（date）**：在 tibble 中显示为 `<date>`
+
++ **时间（time）**：在 tibble 中显示为 `<time>`
+
++ **日期-时间（date-time）**：在 tibble 中显示为 `<dttm>` ，这种数据类型唯一地指代一个时刻
+
+处理时间数据类型需要引入 `hms` 包，在 `lubridate` 包中只关注日期和日期-时间数据类型。
+
+日期-时间数据类型由于要处理时区等问题，复杂程度远高于日期。因此，在满足需要的前提下，尽量使用日期数据类型。
+
+`today()` 可以返回当前的日期：
+```{r}
+today()
+```
+`now()` 可以返回当前的日期-时间：
+```{r}
+now()
+```
+
+除此之外，有3种方式可以创建日期/时间：  
+
++ 字符串
++ 独立的日期-时间元素
++ 已有的日期/时间对象
+
+
+## 2.1 字符串
+使用之前介绍过的 `parse_*()` 函数可以将字符串解析为日期/时间。除此之外，还可以借助 `lubridate` 包中的函数。在这些函数中， `y` 、 `m` 、 `d` 分别指代年、月、日，根据字符串中年月日出现的顺序来排列 `y` 、 `m` 、 `d` ，可以解析日期：
+```{r}
+ymd("2017-01-31")
+```
+```{r}
+mdy("1, 31, 2017")
+```
+```{r}
+dmy("31-Jan-2017")
+```
+
+没有引号的数字也可以被识别：
+```{r}
+ymd(20170131)
+```
+
+解析日期-时间：
+```{r}
+ymd_hms("2017-01-31 20:11:59")
+```
+```{r}
+mdy_hm("01/31/2017 08:01")
+```
+
+添加时区参数后，可以将日期转化为日期-时间：
+```{r}
+ymd(20170131, tz = "UTC")
+```
+
+## 2.2 独立的日期-时间元素
+有时候日期/时间信息并非存储在单一字符串中，而是分散在数据框的多个列中，如 `flights` 数据集：
+```{r}
+flights %>% 
+  select(year, month, day, hour, minute)
+```
+```
+#> # A tibble: 336,776 × 5
+#>    year month   day  hour minute
+#>   <int> <int> <int> <dbl>  <dbl>
+#> 1  2013     1     1     5     15
+#> 2  2013     1     1     5     29
+#> 3  2013     1     1     5     40
+#> 4  2013     1     1     5     45
+#> 5  2013     1     1     6      0
+#> 6  2013     1     1     5     58
+#> # ... with 3.368e+05 more rows
+```
+
+使用 `make_date()` 创建日期， 使用 `make_datetime()` 创建日期-时间：
+```{r}
+flights %>% 
+  select(year, month, day, hour, minute) %>% 
+  mutate(departure = make_datetime(year, month, day, hour, minute))
+```
+```
+#> # A tibble: 336,776 × 6
+#>    year month   day  hour minute           departure
+#>   <int> <int> <int> <dbl>  <dbl>              <dttm>
+#> 1  2013     1     1     5     15 2013-01-01 05:15:00
+#> 2  2013     1     1     5     29 2013-01-01 05:29:00
+#> 3  2013     1     1     5     40 2013-01-01 05:40:00
+#> 4  2013     1     1     5     45 2013-01-01 05:45:00
+#> 5  2013     1     1     6      0 2013-01-01 06:00:00
+#> 6  2013     1     1     5     58 2013-01-01 05:58:00
+#> # ... with 3.368e+05 more rows
+```
+
+ `flights` 数据集中的4个时间变量用 `2400` 的形式存储数据，对它们进行处理，将之转化为日期-时间数据类型：
+```{r}
+make_datetime_100 <- function(year, month, day, time) {
+  make_datetime(year, month, day, time %/% 100, time %% 100)
+}
+
+flights_dt <- flights %>% 
+  filter(!is.na(dep_time), !is.na(arr_time)) %>% 
+  mutate(
+    dep_time = make_datetime_100(year, month, day, dep_time),
+    arr_time = make_datetime_100(year, month, day, arr_time),
+    sched_dep_time = make_datetime_100(year, month, day, sched_dep_time),
+    sched_arr_time = make_datetime_100(year, month, day, sched_arr_time)
+  ) %>% 
+  select(origin, dest, ends_with("delay"), ends_with("time"))
+
+flights_dt
+```
+```
+#> # A tibble: 328,063 × 9
+#>   origin  dest dep_delay arr_delay            dep_time      sched_dep_time
+#>    <chr> <chr>     <dbl>     <dbl>              <dttm>              <dttm>
+#> 1    EWR   IAH         2        11 2013-01-01 05:17:00 2013-01-01 05:15:00
+#> 2    LGA   IAH         4        20 2013-01-01 05:33:00 2013-01-01 05:29:00
+#> 3    JFK   MIA         2        33 2013-01-01 05:42:00 2013-01-01 05:40:00
+#> 4    JFK   BQN        -1       -18 2013-01-01 05:44:00 2013-01-01 05:45:00
+#> 5    LGA   ATL        -6       -25 2013-01-01 05:54:00 2013-01-01 06:00:00
+#> 6    EWR   ORD        -4        12 2013-01-01 05:54:00 2013-01-01 05:58:00
+#> # ... with 3.281e+05 more rows, and 3 more variables: arr_time <dttm>,
+#> #   sched_arr_time <dttm>, air_time <dbl>
+```
+
+可视化出发时间的分布（按天）：
+```{r}
+flights_dt %>% 
+  ggplot(aes(dep_time)) + 
+  geom_freqpoly(binwidth = 86400) # 86400 seconds = 1 day
+```
+
+可视化2013年1月1日这一天，出发时间的分布（按10分钟）：
+```{r}
+flights_dt %>% 
+  filter(dep_time < ymd(20130102)) %>% 
+  ggplot(aes(dep_time)) + 
+  geom_freqpoly(binwidth = 600) # 600 s = 10 minutes
+```
+
+注意，在数值背景下使用日期-时间数据（例如直方图），1代表1秒，所以86400的箱宽代表1天，600的箱宽代表10分钟；对于日期数据，1代表1天。
+
+## 2.3 已有的日期/时间对象
+使用 `as_datetime()` 和 `as_date()` 可以在日期和日期-时间格式间转换：
+```{r}
+as_datetime(today())
+```
+```{r}
+as_date(now())
+```
+
+如果得到的是从 1970-01-01 起的时间偏移值，按秒计则使用 `as_datetime()` ，按天计则使用 `as_date()` ：
+```{r}
+as_datetime(60 * 60 * 10)
+```
+```{r}
+as_date(365 * 10 + 2)
+```
+
+# 3 日期-时间元素
+## 3.1 获取日期/时间元素
+使用 `year()`, `month()`, `mday()` (day of the month), `yday()` (day of the year), `wday()` (day of the week), `hour()`, `minute()`, `second()` 函数可以获取日期-时间数据中的特定元素：
+```{r}
+datetime <- ymd_hms("2016-07-08 12:34:56")
+```
+```{r}
+year(datetime)
+```
+```{r}
+month(datetime)
+```
+```{r}
+mday(datetime)
+```
+```{r}
+yday(datetime)
+```
+```{r}
+wday(datetime)
+```
+
+对于 `month()` 和 `wday()` ，设置 `label = TRUE` 可以返回别名，再设置 `abbr = FALSE` 可以返回全名：
+```{r}
+month(datetime, label = TRUE)
+```
+```{r}
+wday(datetime, label = TRUE, abbr = FALSE)
+```
+
+使用 `wday()` 函数可以看出，工作日的航班比周末的更多：
+```{r}
+flights_dt %>% 
+  mutate(wday = wday(dep_time, label = TRUE)) %>% 
+  ggplot(aes(x = wday)) +
+    geom_bar()
+```
+
+按航班实际起飞时间的分钟数分组，观察平均延误时间分布，可以看出，在20-30分和50-60分起飞的航班延误时间低得多：
+```{r}
+flights_dt %>% 
+  mutate(minute = minute(dep_time)) %>% 
+  group_by(minute) %>% 
+  summarise(
+    avg_delay = mean(arr_delay, na.rm = TRUE),
+    n = n()) %>% 
+  ggplot(aes(minute, avg_delay)) +
+    geom_line()
+```
+
+按航班预定起飞时间的分钟数分组，观察平均延误时间分布，则看不出任何规律：
+```{r}
+sched_dep <- flights_dt %>% 
+  mutate(minute = minute(sched_dep_time)) %>% 
+  group_by(minute) %>% 
+  summarise(
+    avg_delay = mean(arr_delay, na.rm = TRUE),
+    n = n())
+
+ggplot(sched_dep, aes(minute, avg_delay)) +
+  geom_line()
+```
+
+观察航班预定起飞时间的分钟数分布，可以看出，航班倾向于将预定起飞时间安排在整数分钟：
+```{r}
+ggplot(sched_dep, aes(minute, n)) +
+  geom_line()
+```
+
+## 3.2 约整
+`floor_date()` 、 `round_date()` 和 `ceiling_date()` 可以对时间进行约整。第一个参数是需要约整的日期-时间向量，第二个参数是需要约整的部分，用字符串形式表达。  
+
+按天统计，每一天出发的航班数：
+```{r}
+flights_dt %>% 
+  ggplot(aes(dep_time)) + 
+  geom_freqpoly(binwidth = 86400) # 86400 seconds = 1 day
+```
+
+按周统计，每一周出发的航班数：
+```{r}
+flights_dt %>% 
+  count(week = floor_date(dep_time, "week")) %>% 
+  ggplot(aes(week, n)) +
+    geom_line()
+```
+
+## 3.3 设置日期/时间元素
+使用 `year()`, `month()`, `mday()` (day of the month), `yday()` (day of the year), `wday()` (day of the week), `hour()`, `minute()`, `second()` 函数也可以修改日期-时间数据中的特定元素：
+```{r}
+(datetime <- ymd_hms("2016-07-08 12:34:56"))
+```
+```{r}
+year(datetime) <- 2020
+
+datetime
+```
+```{r}
+month(datetime) <- 01
+
+datetime
+```
+```{r}
+hour(datetime) <- hour(datetime) + 1
+```
+
+以上函数就地修改原有的对象，还可以使用 `update()` 函数在原有对象的基础上创建新的对象：
+```{r}
+update(datetime, year = 2020, month = 2, mday = 2, hour = 2)
+```
+
+如果设置的值过大，会顺延至下个周期：
+```{r}
+ymd("2015-02-01") %>% 
+  update(mday = 30)
+```
+```{r}
+ymd("2015-02-01") %>% 
+  update(hour = 400)
+```
+
+利用 `update()` 函数将所有航班的 `dep_time` 都设置为2013年1月1日，从而可视化一整年中，航班起飞时间在一天24小时中的分布：
+```{r}
+flights_dt %>% 
+  mutate(dep_hour = update(dep_time, yday = 1)) %>% 
+  ggplot(aes(dep_hour)) +
+    geom_freqpoly(binwidth = 300)
+```
+
+将日期-时间数据中的某个大时间尺度的元素设置为常数，可以探索小时间尺度上的规律。
+
+# 4 时间范围
+有3种类可以表示时间范围：  
+
++ **durations** ： represent an exact number of seconds.
++ **periods** ： represent human units like weeks and months.
++ **intervals** ： represent a starting and ending point.
+
+## 4.1 Durations
+在 R 中，如果对两个日期相减，会得到一个 difftime 对象：
+```{r}
+# How old is Hadley?
+h_age <- today() - ymd(19791014)
+
+h_age
+```
+
+difftime 类用秒、分钟、小时、天或周来表示时间范围，容易引起混淆。 `lubridate` 包提供了 **duration** 对象，始终用秒来表示时间范围：
+```{r}
+as.duration(h_age)
+```
+
+有一系列函数可以创建 duration 对象：
+```{r}
+dseconds(15)
+```
+```{r}
+dminutes(10)
+```
+```{r}
+dhours(c(12, 24))
+```
+```{r}
+ddays(0:5)
+```
+```{r}
+dweeks(3)
+```
+```{r}
+dyears(1)
+```
+
+可以对 duration 进行加法、乘法计算：
+```{r}
+2 * dyears(1)
+```
+```{r}
+dyears(1) + dweeks(12) + dhours(15)
+```
+
+可以用日期/时间对象和 duration 进行加减计算：
+```{r}
+tomorrow <- today() + ddays(1)
+last_year <- today() - dyears(1)
+```
+
+然而，由于 duration 对象用秒存储，可能会得到意想不到的结果：
+```{r}
+one_pm <- ymd_hms("2016-03-12 13:00:00", tz = "America/New_York")
+
+one_pm
+```
+```{r}
+one_pm + ddays(1)
+```
+
+由于夏令时，3月12日只有23个小时，所以加上一整天代表的秒数，13点变成了第二天的14点，且时区也发生了变化。
+
+## 4.2 Periods
+不同于 duration 精确用秒存储， period 代表人类定义的时间长度，如天、月：
+```{r}
+one_pm
+```
+```{r}
+one_pm + days(1)
+```
+
+有一系列函数可以创建 period 对象：
+```{r}
+seconds(15)
+```
+```{r}
+minutes(10)
+```
+```{r}
+hours(c(12, 24))
+```
+```{r}
+days(7)
+```
+```{r}
+months(1:6)
+```
+```{r}
+weeks(3)
+```
+```{r}
+years(1)
+```
+
+可以对 period 进行加法、乘法计算：
+```{r}
+10 * (months(6) + days(1))
+```
+```{r}
+days(50) + hours(25) + minutes(2)
+```
+
+可以用日期/时间对象和 period 进行加减计算，得到的结果和 duration 可能不同：
+```{r}
+# A leap year
+ymd("2016-01-01") + dyears(1)
+```
+```{r}
+ymd("2016-01-01") + years(1)
+```
+
+```{r}
+# Daylight Savings Time
+one_pm + ddays(1)
+```
+```{r}
+one_pm + days(1)
+```
+
+`flights_dt` 数据集中，某些航班由于通宵飞行，显示的到达时间会早于起飞时间：
+```{r}
+flights_dt %>% 
+  filter(arr_time < dep_time) 
+```
+```
+#> # A tibble: 10,633 × 9
+#>   origin  dest dep_delay arr_delay            dep_time      sched_dep_time
+#>    <chr> <chr>     <dbl>     <dbl>              <dttm>              <dttm>
+#> 1    EWR   BQN         9        -4 2013-01-01 19:29:00 2013-01-01 19:20:00
+#> 2    JFK   DFW        59        NA 2013-01-01 19:39:00 2013-01-01 18:40:00
+#> 3    EWR   TPA        -2         9 2013-01-01 20:58:00 2013-01-01 21:00:00
+#> 4    EWR   SJU        -6       -12 2013-01-01 21:02:00 2013-01-01 21:08:00
+#> 5    EWR   SFO        11       -14 2013-01-01 21:08:00 2013-01-01 20:57:00
+#> 6    LGA   FLL       -10        -2 2013-01-01 21:20:00 2013-01-01 21:30:00
+#> # ... with 1.063e+04 more rows, and 3 more variables: arr_time <dttm>,
+#> #   sched_arr_time <dttm>, air_time <dbl>
+```
+
+通过为这些航班的到达时间加上 `days(1)` 来修复这一问题：
+```{r}
+flights_dt <- flights_dt %>% 
+  mutate(
+    overnight = arr_time < dep_time,
+    arr_time = arr_time + days(overnight * 1),
+    sched_arr_time = sched_arr_time + days(overnight * 1)
+  )
+
+flights_dt %>% 
+  filter(overnight, arr_time < dep_time) 
+```
+```
+#> # A tibble: 0 × 10
+#> # ... with 10 variables: origin <chr>, dest <chr>, dep_delay <dbl>,
+#> #   arr_delay <dbl>, dep_time <dttm>, sched_dep_time <dttm>,
+#> #   arr_time <dttm>, sched_arr_time <dttm>, air_time <dbl>,
+#> #   overnight <lgl>
+```
+
+## 4.3 Intervals
+由于 duration 用秒精确存储，所以 `dyears(1) / ddays(365)` 的结果一定是1。但是 `years(1) / days(1)` 的结果并不明确，因为我们并不知道这一年是否为闰年：
+```{r}
+years(1) / days(1)
+```
+
+为了得到更为精确的结果，需要使用 interval 对象。 interval 相当于一个拥有时间起点的 duration 对象：
+```
+next_year <- today() + years(1)
+(today() %--% next_year) / ddays(1)
+```
+```
+#> [1] 365
+```
+
+利用整除找到有多少个 period 落在 interval 中：
+```
+(today() %--% next_year) %/% days(1)
+```
+```
+#> Note: method with signature 'Timespan#Timespan' chosen for function '%/%',
+#>  target signature 'Interval#Period'.
+#>  "Interval#ANY", "ANY#Period" would also be valid
+#> [1] 365
+```
+
+## 4.4 总结
+尽量使用简单的数据结构。例如：关注的是物理时间，选择 duration ；关注的是人类时间，选择 period ；关注的是一段时间范围有多长，使用 interval 。  
+
+下图是不同日期-时间数据结构之间可以进行的算术运算种类：  
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/datetimes-arithmetic.png)
+
+# 5 时区
+时区的问题非常复杂，在数据分析领域对这一问题涉及不深。仅需要注意以下几个问题：  
+
++ 时区的命名十分复杂。在 R 中，使用国际标准 IANA 时区，命名规则为 “<continent>/<city>” ，例如 “America/New_York” 、 “Europe/Paris” 、 “Pacific/Auckland” 等。
+
+使用 `Sys.timezone()` 函数获得系统环境所在的时区：
+```{r}
+Sys.timezone()
+```
+
+使用 `OlsonNames()` 函数获得完整的时区列表：
+```{r}
+length(OlsonNames())
+```
+```{r}
+head(OlsonNames())
+```
+
++ 在 R 中，时区是日期-时间数据的属性，仅仅控制显示，而不影响实际时间。例如，以下3个对象实际上表示同一时刻：
+```{r}
+(x1 <- ymd_hms("2015-06-01 12:00:00", tz = "America/New_York"))
+```
+```{r}
+(x2 <- ymd_hms("2015-06-01 18:00:00", tz = "Europe/Copenhagen"))
+```
+```{r}
+(x3 <- ymd_hms("2015-06-02 04:00:00", tz = "Pacific/Auckland"))
+```
+
+通过减法可以验证：
+```{r}
+x1 - x2
+```
+```{r}
+x1 - x3
+```
+
++ 默认情况下， `lubridate` 使用协调世界时 UTC (Coordinated Universal Time) 时间，大约等同于其前身格林尼治时间 GMT (Greenwich Mean Time) 。
+
++ 对日期-时间数据使用 `c()` 之类的连接函数，会丢掉原有的时区信息，并显示为系统环境所在的时区：
+```{r}
+x4 <- c(x1, x2, x3)
+x4
+```
+
++ 有2种改变时区的方法：  
+
+`with_tz` 函数：保持实际时间不变，更改时区参数 `tzone` 。用于实际时间是正确的，仅仅想改变显示的时区的情况：
+```{r}
+x4a <- with_tz(x4, tzone = "Australia/Lord_Howe")
+x4a
+```
+```{r}
+x4a - x4
+```
+
+`force_tz` 函数：更改实际时间。用于标错了时区的情况：
+```{r}
+x4b <- force_tz(x4, tzone = "Australia/Lord_Howe")
+x4b
+```
+```{r}
+x4b - x4
+```
