@@ -4,6 +4,29 @@ output: html_notebook
 ---
 
 # 目录
++ 1 前提准备
++ 2 向量基础
++ 3 原子向量的数据类型
+    + 3.1 逻辑向量
+    + 3.2 数值向量
+    + 3.3 字符向量
+    + 3.4 缺失值
++ 4 向量的使用
+    + 4.1 强制转换向量的数据类型
+    + 4.2 检测向量的数据类型
+    + 4.3 自动补齐
+    + 4.4 给向量中的元素命名
+    + 4.5 索引
++ 5 递归向量（列表）
+    + 5.1 可视化列表
+    + 5.2 索引
+    + 5.3 调味品列表
++ 6 属性
+    + 6.1 面向对象编程
++ 7 扩展向量
+    + 7.1 因子
+    + 7.2 日期和时间
+    + 7.3 tibble
 
 # 1 前提准备
 ```{r}
@@ -20,7 +43,8 @@ library(tidyverse)
 两种类型向量最主要的差别在于：原子向量的元素都是**同质**的，而列表的元素可以是**异质**的。
 
 另外， `NULL` 表示缺失向量，而 `NA` 表示向量中的缺失值， `NULL` 通常被视为长度为0的向量。下图展示了 `R` 中不同类型向量间的关系：  
-`![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-structures-overview.png)`
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-structures-overview.png)
 
 每个向量都有2个属性：  
 
@@ -39,7 +63,7 @@ x <- list("a", "b", 1:10)
 length(x)
 ```
 
-向量能够以属性的形式包含附加的元数据，这些属性可以用于构建 **扩展向量 augmented vectors** 。主要有4种扩展向量：  
+向量能够以属性的形式包含附加的元数据，这些属性可以用于构建 **扩展向量 augmented vectors** 。主要有以下几种扩展向量：  
 
 + 因子：在整数向量基础上构建
 + 日期和时间：在数值向量基础上构建
@@ -47,7 +71,7 @@ length(x)
 
 接下来将会按照原子向量、列表、扩展向量的顺序进行介绍。
 
-# 3 原子向量的数据类型类型
+# 3 原子向量的数据类型
 数据分析中主要使用4种类型的向量：逻辑向量、整数向量、双精度向量、字符向量。
 
 ## 3.1 逻辑向量
@@ -352,8 +376,9 @@ x2 <- list(list(1, 2), list(3, 4))
 x3 <- list(1, list(2, list(3)))
 ```
 
-上面3个列表的结构如下：
-`![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/lists-structure.png)`
+上面3个列表的结构如下：  
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/lists-structure.png)
 
 ## 5.2 索引
 有3种方式可以索引列表 `a` ：
@@ -387,31 +412,148 @@ a$a
 a[["a"]]
 ```
 
-注意 `[` 和 `[[` 的区别：
-`![](https://github.com/blueliberty/R-for-Data-Science/blob/master/Pictures/lists-subsetting.png?raw=true)`
+注意 `[` 和 `[[` 的区别：  
 
+![](https://github.com/blueliberty/R-for-Data-Science/blob/master/Pictures/lists-subsetting.png?raw=true)
 
+## 5.3 调味品列表
+`[` 和 `[[` 的区别十分重要，下面用一个胡椒粉调料瓶来形象地展示这种区别：  
 
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/pepper.png)
 
+如果这个调料瓶是列表 `x` ，那么 `x[1]` 是包含了一小包胡椒粉的调料瓶：  
 
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/pepper-1.png)
 
+`x[2]` 是包含了第二包胡椒粉的调料瓶， `x[1:2]` 是包含了两包胡椒粉的调料瓶。
 
+而 `x[[1]]` 是一小包胡椒粉：  
 
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/pepper-2.png)
 
+`x[[1]][[1]]` 则是胡椒粉：  
 
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/pepper-3.png)
 
+# 6 属性
+任何对象都可以有以列表形式存在的**属性（attributes）**。可以使用 `attr()` 获取和创建单个属性，或使用 `attributes()` 获取全部属性：
+```{r}
+x <- 1:10
+attr(x, "greeting")
+```
+```{r}
+attr(x, "greeting") <- "Hi!"
+attr(x, "farewell") <- "Bye!"
+attributes(x)
+```
 
+在 R 中有3个非常重要的属性：  
 
++ 1 **名字（name）**：为向量的元素命名
++ 2 **维度（dimension）**：使向量可以像矩阵、数组一样操作
++ 3 **类（class）**：实现 S3 面向对象编程
 
+## 6.1 面向对象编程
+一个典型的通用函数（generic function）如下：
+```{r}
+as.Date
+```
 
+UseMethod 意味着该函数是一个通用函数，可以根据传入参数的类来调用特定的方法（method）。使用 `methods()` 函数查看该函数的所有方法：
+```{r}
+methods("as.Date")
+```
 
+如果 `x` 是一个字符向量， `as.Date()` 会调用 `as.Date.character()` ；如果 `x` 是一个因子， `as.Date()` 会调用 `as.Date.factor()` 。
 
+通过 `getS3method()` 函数可以查看某个方法的具体实现：
+```{r}
+getS3method("as.Date", "default")
+```
+```{r}
+getS3method("as.Date", "numeric")
+```
 
+`print()` 、 `[` 、 `[[` 、 `$` 都是很重要的 S3 通用函数。
 
+# 7 扩展向量
+原子向量和列表是其他类型向量的基础。这些向量被称为扩展向量，因为它们是拥有额外属性的向量。
 
+## 7.1 因子
+因子建立在整数向量的基础上，拥有 `levels` 属性：
+```{r}
+x <- factor(c("ab", "cd", "ab"), levels = c("ab", "cd", "ef"))
+typeof(x)
+```
+```{r}
+attributes(x)
+```
 
+## 7.2 日期和时间
++ 日期是数值向量，其实质是距1970年1月1日的天数：
+```{r}
+x <- as.Date("1971-01-01")
+unclass(x)
+```
+```{r}
+typeof(x)
+```
+```{r}
+attributes(x)
+```
 
++ 日期-时间是数值向量，拥有 `POSIXct` (“Portable Operating System Interface” calendar time) 类，其实质是距1970年1月1日的秒数：
+```{r}
+x <- lubridate::ymd_hm("1970-01-01 01:00")
+unclass(x)
+```
+```{r}
+typeof(x)
+```
+```{r}
+attributes(x)
+```
 
+`tzone` 属性是可选的，只影响时间的显示方式，而不影响时间的内容：
+```{r}
+attr(x, "tzone") <- "US/Pacific"
+x
+```
+```{r}
+attr(x, "tzone") <- "US/Eastern"
+x
+```
 
++ 还有一种日期-时间类型 `POSIXlt` ，建立在列表的基础上：
+```{r}
+y <- as.POSIXlt(x)
+typeof(y)
+```
+```{r}
+attributes(y)
+```
 
+可以使用 `lubridate::as_date_time()` 将 `POSIXlt` 转换为更容易使用的 `POSIXct` 。
 
+## 7.3 tibble
+tibble 是加强型的列表，拥有 `tbl_df` 、 `tbl` 、 `data.frame` 类，以及 `names` 和 `row.names` 属性：
+```{r}
+tb <- tibble::tibble(x = 1:5, y = 5:1)
+typeof(tb)
+```
+```{r}
+attributes(tb)
+```
+
+tibble 和 列表的差别在于： tibble 要求所有的元素都必须是长度一致的向量。
+
+传统的 data.frame 结构与 tibble 相似：
+```{r}
+df <- data.frame(x = 1:5, y = 5:1)
+typeof(df)
+```
+```{r}
+attributes(df)
+```
+
+tibble 的类包含了 data.frame ，意味着 tibble 继承了 data.frame 的所有特性。
