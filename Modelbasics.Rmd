@@ -615,7 +615,7 @@ ggplot(sim5, aes(x, y)) +
 ```
 
 # 5 缺失值
-在建模时， `R` 会自动丢弃存在缺失值的行，且不给出 warning 。但由于 `library(tidyverse)` 默认设置了 `options(na.action = na.warn)` ，所以会得到 warning ：
+在建模时， `R` 会自动丢弃存在缺失值的行，且不给出 warning 。但由于在前提假设中设置了 `options(na.action = na.warn)` ，所以会得到 warning ：
 ```{r}
 df <- tribble(
   ~x, ~y,
