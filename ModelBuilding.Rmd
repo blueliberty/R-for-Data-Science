@@ -1,0 +1,390 @@
+---
+title: "模型构建"
+output: html_notebook
+---
+
+# 目录
++ 1 前提准备
++ 2 为什么低品质的钻石价格更高？
+    + 2.1 价格和克拉数
+    + 2.2 更为复杂的模型
++ 3 哪些因素会影响一天的航班数？
+    + 3.1 星期效应
+    + 3.2 星期六效应
+    + 3.3 计算变量
+    + 3.4 自然样条
++ 4 其他推荐书籍
+
+# 1 前提准备
+```{r}
+library(tidyverse)
+library(modelr)
+options(na.action = na.warn)
+```
+
+```{r}
+library(nycflights13)
+library(lubridate)
+```
+
+# 2 为什么低品质的钻石价格更高？
+在 `diamonds` 数据集中，低品质（差切工、差颜色、低透明度）的钻石，价格会更高（最差的颜色为 J - slightly yellow ，最差的透明度为 I1 - inclusions visible to the naked eye）：
+```{r}
+ggplot(diamonds, aes(cut, price)) + geom_boxplot()
+```
+```{r}
+ggplot(diamonds, aes(color, price)) + geom_boxplot()
+```
+```{r}
+ggplot(diamonds, aes(clarity, price)) + geom_boxplot()
+```
+
+## 2.1 价格和克拉数
+钻石的重量是决定钻石价格最重要的因素，低品质的钻石重量相对较大：
+```{r}
+ggplot(diamonds, aes(carat, price)) + 
+  geom_hex(bins = 50)
+```
+
+对 `diamonds` 数据集进行以下数据转换：  
+
++ 1 只关注重量低于2.5克拉的钻石（占比99.7%）
++ 2 对克拉数和价格进行对数变换
+
+```{r}
+diamonds2 <- diamonds %>% 
+  filter(carat <= 2.5) %>% 
+  mutate(lprice = log2(price), lcarat = log2(carat))
+```
+
+数据转换后，发现对数价格和对数克拉数呈线性关系：
+```{r}
+ggplot(diamonds2, aes(lcarat, lprice)) + 
+  geom_hex(bins = 50)
+```
+
+为了移除克拉数对价格的影响，首先建立线性模型来表示对数价格与对数克拉数之间的线性关系：
+```{r}
+mod_diamond <- lm(lprice ~ lcarat, data = diamonds2)
+```
+
+然后可视化克拉数与价格之间的关系，用红线表示已建立的模型：
+```{r}
+grid <- diamonds2 %>% 
+  data_grid(carat = seq_range(carat, 20)) %>% 
+  mutate(lcarat = log2(carat)) %>% 
+  add_predictions(mod_diamond, "lprice") %>% 
+  mutate(price = 2 ^ lprice)
+
+ggplot(diamonds2, aes(carat, price)) + 
+  geom_hex(bins = 50) + 
+  geom_line(data = grid, colour = "red", size = 1)
+```
+
+从图中可以看出，重量较大的钻石，实际价格比预测价格更低。但这也可能是由于数据集中没有价格高于19000美元的钻石。
+
+接下来分离出残差，代表剔除克拉数影响后的钻石价格：
+```{r}
+diamonds2 <- diamonds2 %>% 
+  add_residuals(mod_diamond, "lresid")
+
+ggplot(diamonds2, aes(lcarat, lresid)) + 
+  geom_hex(bins = 50)
+```
+
+最后用残差对钻石品质进行可视化：
+```{r}
+ggplot(diamonds2, aes(cut, lresid)) + geom_boxplot()
+```
+```{r}
+ggplot(diamonds2, aes(color, lresid)) + geom_boxplot()
+```
+```{r}
+ggplot(diamonds2, aes(clarity, lresid)) + geom_boxplot()
+```
+
+可以看出，钻石的价格会随着钻石品质的提高而变得昂贵 `y` 轴上为-1，表示实际价格为预测价格的一半， `y` 轴上为1，表示实际价格为预测价格的两倍。
+
+## 2.2 更为复杂的模型
+将钻石的克拉数、颜色、切工、透明度都纳入模型，以衡量这三个类别变量对价格的影响：
+```{r}
+mod_diamond2 <- lm(lprice ~ lcarat + color + cut + clarity, data = diamonds2)
+```
+
+可视化剔除了克拉数、颜色、透明度后，切工对钻石价格的影响：
+```{r}
+grid <- diamonds2 %>% 
+  data_grid(cut, .model = mod_diamond2) %>% 
+  add_predictions(mod_diamond2)
+
+ggplot(grid, aes(cut, pred)) + 
+  geom_point()
+```
+
+```{r}
+grid
+```
+```
+#> # A tibble: 5 × 5
+#>         cut lcarat color clarity  pred
+#>       <ord>  <dbl> <chr>   <chr> <dbl>
+#> 1      Fair -0.515     G     SI1  11.0
+#> 2      Good -0.515     G     SI1  11.1
+#> 3 Very Good -0.515     G     SI1  11.2
+#> 4   Premium -0.515     G     SI1  11.2
+#> 5     Ideal -0.515     G     SI1  11.2
+```
+
+注意 `data_grid()` 中 `.model` 参数的用法：如果模型中用到的变量没有提供，会自动用数据集中的 `“typical” value` 加以填充，即连续变量的平均值，类别变量的众数。例如， `grid` 中的 `lcarat` 用 `-0.5145732` 填充， `color` 用 `G` 填充， `clarity` 用 `SI1` 填充。
+
+绘制残差图：
+```{r}
+diamonds2 <- diamonds2 %>% 
+  add_residuals(mod_diamond2, "lresid2")
+
+ggplot(diamonds2, aes(lcarat, lresid2)) + 
+  geom_hex(bins = 50)
+```
+
+发现有一些残差很大的样本点，残差为2代表实际价格是预测价格的4倍，将异常值提取出来以便进一步观察：
+```{r}
+diamonds2 %>% 
+  filter(abs(lresid2) > 1) %>% 
+  add_predictions(mod_diamond2) %>% 
+  mutate(pred = round(2 ^ pred)) %>% 
+  select(price, pred, carat:table, x:z) %>% 
+  arrange(price)
+```
+```
+#> # A tibble: 16 × 11
+#>   price  pred carat     cut color clarity depth table     x     y     z
+#>   <int> <dbl> <dbl>   <ord> <ord>   <ord> <dbl> <dbl> <dbl> <dbl> <dbl>
+#> 1  1013   264  0.25    Fair     F     SI2  54.4    64  4.30  4.23  2.32
+#> 2  1186   284  0.25 Premium     G     SI2  59.0    60  5.33  5.28  3.12
+#> 3  1186   284  0.25 Premium     G     SI2  58.8    60  5.33  5.28  3.12
+#> 4  1262  2644  1.03    Fair     E      I1  78.2    54  5.72  5.59  4.42
+#> 5  1415   639  0.35    Fair     G     VS2  65.9    54  5.57  5.53  3.66
+#> 6  1415   639  0.35    Fair     G     VS2  65.9    54  5.57  5.53  3.66
+#> # ... with 10 more rows
+```
+
+数据中并未看出明显的异常，可能是模型的问题，也可能是数据本身的问题。
+
+# 3 哪些因素会影响一天的航班数？
+计算每天航班数，并进行可视化：
+```{r}
+daily <- flights %>% 
+  mutate(date = make_date(year, month, day)) %>% 
+  group_by(date) %>% 
+  summarise(n = n())
+
+daily
+```
+```
+#> # A tibble: 365 × 2
+#>         date     n
+#>       <date> <int>
+#> 1 2013-01-01   842
+#> 2 2013-01-02   943
+#> 3 2013-01-03   914
+#> 4 2013-01-04   915
+#> 5 2013-01-05   720
+#> 6 2013-01-06   832
+#> # ... with 359 more rows
+```
+
+```{r}
+ggplot(daily, aes(date, n)) + 
+  geom_line()
+```
+
+## 3.1 星期效应
+星期效应对航班数的影响非常强烈，会掩盖航班数变化的长期趋势。观察一星期中每天航班数的分布：
+```{r}
+daily <- daily %>% 
+  mutate(wday = wday(date, label = TRUE))
+
+ggplot(daily, aes(wday, n)) + 
+  geom_boxplot()
+```
+
+由于大多数航班是商务旅行，因而周末的航班数相对较少。部分旅客会为了赶上周一早上的会议，选择在周日出发，所以周日的航班数比周六相对较多。
+
+建立航班数相对星期的线性模型，通过去残差来提出星期的影响：
+```{r}
+mod <- lm(n ~ wday, data = daily)
+
+grid <- daily %>% 
+  data_grid(wday) %>% 
+  add_predictions(mod, "n")
+
+ggplot(daily, aes(wday, n)) + 
+  geom_boxplot() +
+  geom_point(data = grid, colour = "red", size = 4)
+```
+```{r}
+daily <- daily %>% 
+  add_residuals(mod)
+
+daily %>% 
+  ggplot(aes(date, resid)) + 
+  geom_ref_line(h = 0) + 
+  geom_line()
+```
+
+上图中， 曲线偏离 `y` 轴的程度，代表了实际航班数偏离一星期中每天期望航班数的程度。再剔除了星期效应后，可以寻找更加细致的模式：   
+
++ 1 模型似乎从6月开始失效，反映了仍然存在强烈的特征没有被模型捕捉到。按星期分组，分别绘制残差图：
+```{r}
+ggplot(daily, aes(date, resid, colour = wday)) + 
+  geom_ref_line(h = 0) + 
+  geom_line()
+```
+
+可以看出模型没有很好地预测周六的航班数：夏天的实际航班数高于预测值，冬天的实际航班数低于预测值。
+
++ 2 某些天的实际航班数远低于预测值：
+```{r}
+daily %>% 
+  filter(resid < -100)
+```
+```
+#> # A tibble: 11 × 4
+#>         date     n  wday resid
+#>       <date> <int> <ord> <dbl>
+#> 1 2013-01-01   842  Tues  -109
+#> 2 2013-01-20   786   Sun  -105
+#> 3 2013-05-26   729   Sun  -162
+#> 4 2013-07-04   737 Thurs  -229
+#> 5 2013-07-05   822   Fri  -145
+#> 6 2013-09-01   718   Sun  -173
+#> # ... with 5 more rows
+```
+
+这些异常的天中，有一些是新年、国庆节、感恩节和圣诞节，还有一些并非是节假日。
+
++ 3 在一年中似乎存在一个长期的趋势，使用 `geom_smooth()` 来表明这一趋势：
+```{r}
+daily %>% 
+  ggplot(aes(date, resid)) + 
+  geom_ref_line(h = 0) + 
+  geom_line(colour = "grey50") + 
+  geom_smooth(se = FALSE, span = 0.20)
+```
+
+1月和12月的航班数较少，夏天（5月到9月）的航班数较多。由于只有一年的数据，很难量化处理这种季节效应，但可以用领域知识来给出可能的解释。
+
+## 3.2 星期六效应
+在数据集中提取出所有星期六的航班数情况：
+```{r}
+daily %>% 
+  filter(wday == "Sat") %>% 
+  ggplot(aes(date, n)) + 
+    geom_point() + 
+    geom_line() +
+    scale_x_date(NULL, date_breaks = "1 month", date_labels = "%b")
+```
+
+从图中看出，夏天的周六航班数较高的，与学校暑假的时间吻合，可能是由于在假期中人们不介意选择周六出游。
+
+创建一个 `term` 变量，来代表学校在一年中的三个学期，并用该变量对周六航班数进行分组：
+```{r}
+term <- function(date) {
+  cut(date, 
+    breaks = ymd(20130101, 20130605, 20130825, 20140101),
+    labels = c("spring", "summer", "fall") 
+  )
+}
+
+daily <- daily %>% 
+  mutate(term = term(date)) 
+
+daily %>% 
+  filter(wday == "Sat") %>% 
+  ggplot(aes(date, n, colour = term)) +
+  geom_point(alpha = 1/3) + 
+  geom_line() +
+  scale_x_date(NULL, date_breaks = "1 month", date_labels = "%b")
+```
+
+观察不同学期对每天航班数的影响：
+```{r}
+daily %>% 
+  ggplot(aes(wday, n, colour = term)) +
+    geom_boxplot()
+```
+
+可以看出，不同学期的航班数情况有显著差异，所以将 `term` 变量引入模型：
+```{r}
+mod1 <- lm(n ~ wday, data = daily)
+mod2 <- lm(n ~ wday * term, data = daily)
+
+daily %>% 
+  gather_residuals(without_term = mod1, with_term = mod2) %>% 
+  ggplot(aes(date, resid, colour = model)) +
+    geom_line(alpha = 0.75)
+```
+
+从下面的箱线图可以看出，线性回归给出的预测值是条件均值，而由于存在大量异常值，均值距离中位数很远，预测的效果较差：
+```{r}
+grid <- daily %>% 
+  data_grid(wday, term) %>% 
+  add_predictions(mod2, "n")
+
+ggplot(daily, aes(wday, n)) +
+  geom_boxplot() + 
+  geom_point(data = grid, colour = "red") + 
+  facet_wrap(~ term)
+```
+
+转而使用 `MASS::rlm()` 模型，该模型受异常值影响相对小，模型更为稳健：
+```{r}
+mod3 <- MASS::rlm(n ~ wday * term, data = daily)
+
+daily %>% 
+  add_residuals(mod3, "resid") %>% 
+  ggplot(aes(date, resid)) + 
+  geom_hline(yintercept = 0, size = 2, colour = "white") + 
+  geom_line()
+```
+
+残差和0的距离更近，模型预测效果更好，同时也更容易定位出异常值。
+
+## 3.3 计算变量
+将对数据集的转换方式编写成函数，可以防止转换的方式前后不一致：
+```{r}
+compute_vars <- function(data) {
+  data %>% 
+    mutate(
+      term = term(date), 
+      wday = wday(date, label = TRUE)
+    )
+}
+```
+
+或者将对数据集的转换方式直接写在模型的公式里：
+```{r}
+wday2 <- function(x) wday(x, label = TRUE)
+mod3 <- lm(n ~ wday2(date) * term(date), data = daily)
+```
+
+## 3.4 自然样条
+上一节利用领域知识，在模型中引入 `term` 变量。也可以使用更加灵活的模型来捕捉数据的模式：
+```{r}
+library(splines)
+mod <- MASS::rlm(n ~ wday * ns(date, 5), data = daily)
+
+daily %>% 
+  data_grid(wday, date = seq_range(date, n = 13)) %>% 
+  add_predictions(mod) %>% 
+  ggplot(aes(date, pred, colour = wday)) + 
+    geom_line() +
+    geom_point()
+```
+
+# 4 其他推荐书籍
++ **Statistical Modeling: A Fresh Approach** by Danny Kaplan, http://www.mosaic-web.org/go/StatisticalModeling/. This book provides a gentle introduction to modelling, where you build your intuition, mathematical tools, and R skills in parallel. The book replaces a traditional “introduction to statistics” course, providing a curriculum that is up-to-date and relevant to data science.
+
++ **An Introduction to Statistical Learning** by Gareth James, Daniela Witten, Trevor Hastie, and Robert Tibshirani, http://www-bcf.usc.edu/~gareth/ISL/ (available online for free). This book presents a family of modern modelling techniques collectively known as statistical learning. For an even deeper understanding of the math behind the models, read the classic Elements of Statistical Learning by Trevor Hastie, Robert Tibshirani, and Jerome Friedman, http://statweb.stanford.edu/~tibs/ElemStatLearn/ (also available online for free).
+
++ **Applied Predictive Modeling** by Max Kuhn and Kjell Johnson, http://appliedpredictivemodeling.com. This book is a companion to the **caret** package and provides practical tools for dealing with real-life predictive modelling challenges.
