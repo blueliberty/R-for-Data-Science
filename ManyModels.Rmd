@@ -1,0 +1,732 @@
+---
+title: "更多模型"
+output: html_notebook
+---
+
+# 目录
++ 1 前提准备
++ 2 `gapminder` 数据集
+    + 2.1 嵌套数据框
+    + 2.2 列表-列
+    + 2.3 解嵌套
+    + 2.4 模型评价
++ 3 列表-列
++ 4 创建列表-列
+    + 4.1 `nest()` 函数
+    + 4.2 返回列表的向量化函数
+    + 4.3 返回多结果的汇总函数
+    + 4.4 有命名的列表
++ 5 列表-列转换为常规列
+    + 5.1 列表-列转换为向量
+    + 5.2 解嵌套
++ 6 用 `broom` 包创建规整数据
+
+# 1 前提准备
+```{r}
+library(modelr)
+library(tidyverse)
+```
+
+# 2 `gapminder` 数据集
+```{r}
+library(gapminder)
+```
+```{r}
+gapminder
+```
+```
+#> # A tibble: 1,704 × 6
+#>       country continent  year lifeExp      pop gdpPercap
+#>        <fctr>    <fctr> <int>   <dbl>    <int>     <dbl>
+#> 1 Afghanistan      Asia  1952    28.8  8425333       779
+#> 2 Afghanistan      Asia  1957    30.3  9240934       821
+#> 3 Afghanistan      Asia  1962    32.0 10267083       853
+#> 4 Afghanistan      Asia  1967    34.0 11537966       836
+#> 5 Afghanistan      Asia  1972    36.1 13079460       740
+#> 6 Afghanistan      Asia  1977    38.4 14880372       786
+#> # ... with 1,698 more rows
+```
+
+使用三个变量，来回答以下问题：不同国家（`country`）的期望寿命（`lifeExp`）是如何随着时间（`year`）变化的？
+
+首先绘制不同国家期望寿命随时间变化的折线图：
+```{r}
+gapminder %>% 
+  ggplot(aes(year, lifeExp, group = country)) +
+    geom_line(alpha = 1/3)
+```
+
+总的来说，一国的期望寿命随着时间稳步提高，但是也有一些国家并未遵循这一规律。建立线性回归模型，剔除时间因素：
+```{r}
+nz <- filter(gapminder, country == "New Zealand")
+nz %>% 
+  ggplot(aes(year, lifeExp)) + 
+  geom_line() + 
+  ggtitle("Full data = ")
+
+```
+```{r}
+nz_mod <- lm(lifeExp ~ year, data = nz)
+nz %>% 
+  add_predictions(nz_mod) %>%
+  ggplot(aes(year, pred)) + 
+  geom_line() + 
+  ggtitle("Linear trend + ")
+```
+```{r}
+nz %>% 
+  add_residuals(nz_mod) %>% 
+  ggplot(aes(year, resid)) + 
+  geom_hline(yintercept = 0, colour = "white", size = 3) + 
+  geom_line() + 
+  ggtitle("Remaining pattern")
+```
+
+如何对所有国家进行同样的操作呢？
+
+## 2.1 嵌套数据框
+不同于使用 `purrr` 中的 `map` 函数族来对列进行循环操作，这里要针对不同国家进行循环操作，即对行进行循环操作。为了达到这一目的，需要借助**嵌套数据框（nested data frame）**，使用 `nest()` 函数：
+```{r}
+by_country <- gapminder %>% 
+  group_by(country, continent) %>% 
+  nest()
+
+by_country
+```
+```
+#> # A tibble: 142 × 3
+#>       country continent              data
+#>        <fctr>    <fctr>            <list>
+#> 1 Afghanistan      Asia <tibble [12 × 4]>
+#> 2     Albania    Europe <tibble [12 × 4]>
+#> 3     Algeria    Africa <tibble [12 × 4]>
+#> 4      Angola    Africa <tibble [12 × 4]>
+#> 5   Argentina  Americas <tibble [12 × 4]>
+#> 6   Australia   Oceania <tibble [12 × 4]>
+#> # ... with 136 more rows
+```
+
+嵌套数据框中每一行都代表一个分组， `data` 一列由数据框构成，包含了该分组的所有数据：
+```{r}
+by_country$data[[1]]
+```
+```
+#> # A tibble: 12 × 4
+#>    year lifeExp      pop gdpPercap
+#>   <int>   <dbl>    <int>     <dbl>
+#> 1  1952    28.8  8425333       779
+#> 2  1957    30.3  9240934       821
+#> 3  1962    32.0 10267083       853
+#> 4  1967    34.0 11537966       836
+#> 5  1972    36.1 13079460       740
+#> 6  1977    38.4 14880372       786
+#> # ... with 6 more rows
+```
+
+注意分组后的数据框和嵌套数据框的区别：分组后的数据框，每一行仍然代表一个观测；嵌套数据框，每一行代表一个分组。
+
+## 2.2 列表-列
+编写一个建立模型的函数：
+```{r}
+country_model <- function(df) {
+  lm(lifeExp ~ year, data = df)
+}
+```
+
+由于 `data` 列相当于一个列表，可以通过 `purrr::map()` 函数来对每个元素循环使用 `country_model()` 函数：
+```{r}
+models <- map(by_country$data, country_model)
+```
+
+可以将 `models` 存储为 `by_country` 的一个列表-列：
+```{r}
+by_country <- by_country %>% 
+  mutate(model = map(data, country_model))
+
+by_country
+```
+```
+#> # A tibble: 142 × 4
+#>       country continent              data    model
+#>        <fctr>    <fctr>            <list>   <list>
+#> 1 Afghanistan      Asia <tibble [12 × 4]> <S3: lm>
+#> 2     Albania    Europe <tibble [12 × 4]> <S3: lm>
+#> 3     Algeria    Africa <tibble [12 × 4]> <S3: lm>
+#> 4      Angola    Africa <tibble [12 × 4]> <S3: lm>
+#> 5   Argentina  Americas <tibble [12 × 4]> <S3: lm>
+#> 6   Australia   Oceania <tibble [12 × 4]> <S3: lm>
+#> # ... with 136 more rows
+```
+
+这样做的好处在于，所有的数据和模型储存在一起，可以同时对它们进行操作：
+```{r}
+by_country %>% 
+  filter(continent == "Europe")
+```
+```
+#> # A tibble: 30 × 4
+#>                  country continent              data    model
+#>                   <fctr>    <fctr>            <list>   <list>
+#> 1                Albania    Europe <tibble [12 × 4]> <S3: lm>
+#> 2                Austria    Europe <tibble [12 × 4]> <S3: lm>
+#> 3                Belgium    Europe <tibble [12 × 4]> <S3: lm>
+#> 4 Bosnia and Herzegovina    Europe <tibble [12 × 4]> <S3: lm>
+#> 5               Bulgaria    Europe <tibble [12 × 4]> <S3: lm>
+#> 6                Croatia    Europe <tibble [12 × 4]> <S3: lm>
+#> # ... with 24 more rows
+```
+
+```{r}
+by_country %>% 
+  arrange(continent, country)
+```
+```
+#> # A tibble: 142 × 4
+#>        country continent              data    model
+#>         <fctr>    <fctr>            <list>   <list>
+#> 1      Algeria    Africa <tibble [12 × 4]> <S3: lm>
+#> 2       Angola    Africa <tibble [12 × 4]> <S3: lm>
+#> 3        Benin    Africa <tibble [12 × 4]> <S3: lm>
+#> 4     Botswana    Africa <tibble [12 × 4]> <S3: lm>
+#> 5 Burkina Faso    Africa <tibble [12 × 4]> <S3: lm>
+#> 6      Burundi    Africa <tibble [12 × 4]> <S3: lm>
+#> # ... with 136 more rows
+```
+
+## 2.3 解嵌套
+对每个分组内的模型和数据计算残差：
+```{r}
+by_country <- by_country %>% 
+  mutate(
+    resids = map2(data, model, add_residuals)
+  )
+
+by_country
+```
+```
+#> # A tibble: 142 × 5
+#>       country continent              data    model            resids
+#>        <fctr>    <fctr>            <list>   <list>            <list>
+#> 1 Afghanistan      Asia <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]>
+#> 2     Albania    Europe <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]>
+#> 3     Algeria    Africa <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]>
+#> 4      Angola    Africa <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]>
+#> 5   Argentina  Americas <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]>
+#> 6   Australia   Oceania <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]>
+#> # ... with 136 more rows
+```
+
+使用 `unnest()` 函数将嵌套数据框解嵌套为常规数据框：
+```{r}
+resids <- unnest(by_country, resids)
+
+resids
+```
+```
+#> # A tibble: 1,704 × 7
+#>       country continent  year lifeExp      pop gdpPercap   resid
+#>        <fctr>    <fctr> <int>   <dbl>    <int>     <dbl>   <dbl>
+#> 1 Afghanistan      Asia  1952    28.8  8425333       779 -1.1063
+#> 2 Afghanistan      Asia  1957    30.3  9240934       821 -0.9519
+#> 3 Afghanistan      Asia  1962    32.0 10267083       853 -0.6636
+#> 4 Afghanistan      Asia  1967    34.0 11537966       836 -0.0172
+#> 5 Afghanistan      Asia  1972    36.1 13079460       740  0.6741
+#> 6 Afghanistan      Asia  1977    38.4 14880372       786  1.6475
+#> # ... with 1,698 more rows
+```
+
+绘制残差图：
+```{r}
+resids %>% 
+  ggplot(aes(year, resid)) +
+    geom_line(aes(group = country), alpha = 1 / 3) + 
+    geom_smooth(se = FALSE)
+```
+
+按大陆进行分组，分别绘制残差图：
+```{r}
+resids %>% 
+  ggplot(aes(year, resid, group = country)) +
+    geom_line(alpha = 1 / 3) + 
+    facet_wrap(~continent)
+```
+
+## 2.4 模型评价
+`broom::glance()` 函数可以给出一些模型评价指标：
+```{r}
+broom::glance(nz_mod)
+```
+
+使用 `mutate()` 和 `unnest()` 为每个模型添加评价指标：
+```{r}
+by_country %>% 
+  mutate(glance = map(model, broom::glance)) %>% 
+  unnest(glance)
+```
+```
+#> # A tibble: 142 × 16
+#>        country continent              data    model            resids r.squared
+#>         <fctr>    <fctr>            <list>   <list>            <list>     <dbl>
+#> 1  Afghanistan      Asia <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]> 0.9477123
+#> 2      Albania    Europe <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]> 0.9105778
+#> 3      Algeria    Africa <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]> 0.9851172
+#> 4       Angola    Africa <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]> 0.8878146
+#> 5    Argentina  Americas <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]> 0.9955681
+#> 6    Australia   Oceania <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]> 0.9796477
+#> 7      Austria    Europe <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]> 0.9921340
+#> 8      Bahrain      Asia <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]> 0.9667398
+#> 9   Bangladesh      Asia <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]> 0.9893609
+#> 10     Belgium    Europe <tibble [12 × 4]> <S3: lm> <tibble [12 × 5]> 0.9945406
+#> # ... with 132 more rows, and 10 more variables: adj.r.squared <dbl>,
+#> #   sigma <dbl>, statistic <dbl>, p.value <dbl>, df <int>, logLik <dbl>,
+#> #   AIC <dbl>, BIC <dbl>, deviance <dbl>, df.residual <int>
+```
+
+使用 `.drop = TRUE` 参数，丢弃所有的列表-列：
+```{r}
+glance <- by_country %>% 
+  mutate(glance = map(model, broom::glance)) %>% 
+  unnest(glance, .drop = TRUE)
+
+glance
+```
+```
+#> # A tibble: 142 × 13
+#>       country continent r.squared adj.r.squared sigma statistic  p.value
+#>        <fctr>    <fctr>     <dbl>         <dbl> <dbl>     <dbl>    <dbl>
+#> 1 Afghanistan      Asia     0.948         0.942 1.223     181.2 9.84e-08
+#> 2     Albania    Europe     0.911         0.902 1.983     101.8 1.46e-06
+#> 3     Algeria    Africa     0.985         0.984 1.323     661.9 1.81e-10
+#> 4      Angola    Africa     0.888         0.877 1.407      79.1 4.59e-06
+#> 5   Argentina  Americas     0.996         0.995 0.292    2246.4 4.22e-13
+#> 6   Australia   Oceania     0.980         0.978 0.621     481.3 8.67e-10
+#> # ... with 136 more rows, and 6 more variables: df <int>, logLik <dbl>,
+#> #   AIC <dbl>, BIC <dbl>, deviance <dbl>, df.residual <int>
+```
+
+找出拟合效果较差的模型，可以发现 $R^2$ 较低的模型都集中在非洲：
+```{r}
+glance %>% 
+  arrange(r.squared)
+```
+```
+#> # A tibble: 142 × 13
+#>     country continent r.squared adj.r.squared sigma statistic p.value
+#>      <fctr>    <fctr>     <dbl>         <dbl> <dbl>     <dbl>   <dbl>
+#> 1    Rwanda    Africa    0.0172      -0.08112  6.56     0.175   0.685
+#> 2  Botswana    Africa    0.0340      -0.06257  6.11     0.352   0.566
+#> 3  Zimbabwe    Africa    0.0562      -0.03814  7.21     0.596   0.458
+#> 4    Zambia    Africa    0.0598      -0.03418  4.53     0.636   0.444
+#> 5 Swaziland    Africa    0.0682      -0.02497  6.64     0.732   0.412
+#> 6   Lesotho    Africa    0.0849      -0.00666  5.93     0.927   0.358
+#> # ... with 136 more rows, and 6 more variables: df <int>, logLik <dbl>,
+#> #   AIC <dbl>, BIC <dbl>, deviance <dbl>, df.residual <int>
+```
+
+由于 `continent` 为离散变量，可以使用 `geom_jitter()` 来绘制 $R^2$ 的扰动点图：
+```{r}
+glance %>% 
+  ggplot(aes(continent, r.squared)) + 
+    geom_jitter(width = 0.5)
+```
+
+绘制 $R^2$ 较差的国家的期望寿命折线图：
+```{r}
+bad_fit <- filter(glance, r.squared < 0.25)
+
+gapminder %>% 
+  semi_join(bad_fit, by = "country") %>% 
+  ggplot(aes(year, lifeExp, colour = country)) +
+    geom_line()
+```
+
+可以发现两个主要的影响因素：HIV/AIDS 传染病和卢旺达大屠杀。
+
+# 3 列表-列
+列表-列隐含在数据框的定义中：数据框本质上是一个包含了一系列有命名的等长向量的列表。列表同时也是向量，所以将列表当做数据框的一列也是合理的。然而，原生 R 处理列表-列并不方便， `data.frame()` 会将列表转换为列的列表，即数据框：
+```{r}
+data.frame(x = list(1:3, 3:5))
+```
+```
+#>   x.1.3 x.3.5
+#> 1     1     3
+#> 2     2     4
+#> 3     3     5
+```
+
+使用 `I()` 可以防止 `data.frame()` 进行这样的转换，但是显示的效果很不直观：
+```{r}
+data.frame(
+  x = I(list(1:3, 3:5)), 
+  y = c("1, 2", "3, 4, 5")
+)
+```
+```
+#>         x       y
+#> 1 1, 2, 3    1, 2
+#> 2 3, 4, 5 3, 4, 5
+```
+
+`tibble()` 不会改变输入的格式，所以保留了列表-列的数据格式，并且会加以显示 `<list>` ：
+```{r}
+tibble(
+  x = list(1:3, 3:5), 
+  y = c("1, 2", "3, 4, 5")
+)
+```
+```
+#> # A tibble: 2 × 2
+#>           x       y
+#>      <list>   <chr>
+#> 1 <int [3]>    1, 2
+#> 2 <int [3]> 3, 4, 5
+```
+
+`tribble()` 还会自动识别并将输入转换为列表-列：
+```{r}
+tribble(
+   ~x, ~y,
+  1:3, "1, 2",
+  3:5, "3, 4, 5"
+)
+```
+```
+#> # A tibble: 2 × 2
+#>           x       y
+#>      <list>   <chr>
+#> 1 <int [3]>    1, 2
+#> 2 <int [3]> 3, 4, 5
+```
+
+列表-列作为过渡用的数据结构非常有用。通常来说，列表-列的工作流程中有三个重要部分：  
+
++ 使用 `nest()` 、 `summarise()` + `list()` 、 `mutate()` + `map` 函数族的方式创建列表-列。
+
++ 对已有的列表-列使用 `map()` 、 `map2()` 、 `pmap()` 函数，生成新的列表-列。
+
++ 将列表-列转换为常规列
+
+# 4 创建列表-列
+通常不会使用 `tibble()` 创建列表-列，而是使用以下四种方式从常规列中创建列表-列：  
+
++ 1 使用 `tidyr::nest()` 将分组数据框转换为嵌套数据框
+
++ 2 使用 `mutate()` 和返回列表的向量化函数
+
++ 3 使用 `summarise()` 和返回多结果的汇总函数
+
++ 4 使用 `tibble::enframe()` 从有命名的列表中创建列表-列。
+
+## 4.1 `nest()` 函数
+`nest()` 可以创建嵌套数据框，即包含列表-列的数据框。在嵌套数据框中，每一行都是一个元观测（meta-observation）：其他常规列定义观测，例如上文中的 `country` 和 `continent` ，列表-列包含该元观测的信息。
+
+有两种使用 `nest()` 的方法：  
+
++ 对分组数据框使用 `nest()` ，分组列不变，将其他列组合成列表-列：
+```{r}
+gapminder %>% 
+  group_by(country, continent) %>% 
+  nest()
+```
+```
+#> # A tibble: 142 × 3
+#>       country continent              data
+#>        <fctr>    <fctr>            <list>
+#> 1 Afghanistan      Asia <tibble [12 × 4]>
+#> 2     Albania    Europe <tibble [12 × 4]>
+#> 3     Algeria    Africa <tibble [12 × 4]>
+#> 4      Angola    Africa <tibble [12 × 4]>
+#> 5   Argentina  Americas <tibble [12 × 4]>
+#> 6   Australia   Oceania <tibble [12 × 4]>
+#> # ... with 136 more rows
+```
+
++ 对未分组数据框使用 `nest()` ，选择需要嵌套进列表-列的列：
+```{r}
+gapminder %>% 
+  nest(year:gdpPercap)
+```
+```
+#> # A tibble: 142 × 3
+#>       country continent              data
+#>        <fctr>    <fctr>            <list>
+#> 1 Afghanistan      Asia <tibble [12 × 4]>
+#> 2     Albania    Europe <tibble [12 × 4]>
+#> 3     Algeria    Africa <tibble [12 × 4]>
+#> 4      Angola    Africa <tibble [12 × 4]>
+#> 5   Argentina  Americas <tibble [12 × 4]>
+#> 6   Australia   Oceania <tibble [12 × 4]>
+#> # ... with 136 more rows
+```
+
+## 4.2 返回列表的向量化函数
+一些函数接收原子向量，返回列表。例如 `stringr` 模块中的 `stringr::str_split()` ，接收字符向量，返回字符向量的列表：
+```{r}
+df <- tribble(
+  ~x1,
+  "a,b,c", 
+  "d,e,f,g"
+) 
+
+df %>% 
+  mutate(x2 = stringr::str_split(x1, ","))
+```
+```
+#> # A tibble: 2 × 2
+#>        x1        x2
+#>     <chr>    <list>
+#> 1   a,b,c <chr [3]>
+#> 2 d,e,f,g <chr [4]>
+```
+
+使用 `unnest()` 可以解嵌套：
+```{r}
+df %>% 
+  mutate(x2 = stringr::str_split(x1, ",")) %>% 
+  unnest()
+```
+```
+#> # A tibble: 7 × 2
+#>        x1    x2
+#>     <chr> <chr>
+#> 1   a,b,c     a
+#> 2   a,b,c     b
+#> 3   a,b,c     c
+#> 4 d,e,f,g     d
+#> 5 d,e,f,g     e
+#> 6 d,e,f,g     f
+#> # ... with 1 more rows
+```
+
+使用 `tidyr::separate_rows()` 也可以达到同样的目的：
+```{r}
+df %>% 
+  mutate(x2 = stringr::str_split(x1, ",")) %>% 
+  tidyr::separate_rows(x2)
+```
+
+另一个例子是使用 `map()` 、 `map2()` 、 `pmap()` 类函数：
+```{r}
+sim <- tribble(
+  ~f,      ~params,
+  "runif", list(min = -1, max = -1),
+  "rnorm", list(sd = 5),
+  "rpois", list(lambda = 10)
+)
+
+sim %>%
+  mutate(sims = invoke_map(f, params, n = 10))
+```
+```
+#> # A tibble: 3 × 3
+#>       f     params       sims
+#>   <chr>     <list>     <list>
+#> 1 runif <list [2]> <dbl [10]>
+#> 2 rnorm <list [1]> <dbl [10]>
+#> 3 rpois <list [1]> <int [10]>
+```
+
+## 4.3 返回多结果的汇总函数
+`summarise()` 的缺陷在于只能与返回一个结果的汇总函数合用，如果和 `quantile()` 这种返回任意长度向量的函数合用会报错：
+```{r}
+mtcars %>% 
+  group_by(cyl) %>% 
+  summarise(q = quantile(mpg))
+```
+
+为应对这种情况，可以将结果封装在列表中：
+```{r}
+mtcars %>% 
+  group_by(cyl) %>% 
+  summarise(q = list(quantile(mpg)))
+```
+```
+#> # A tibble: 3 × 2
+#>     cyl         q
+#>   <dbl>    <list>
+#> 1     4 <dbl [5]>
+#> 2     6 <dbl [5]>
+#> 3     8 <dbl [5]>
+```
+
+使用 `unnest()` 可以解嵌套：
+```{r}
+probs <- c(0.01, 0.25, 0.5, 0.75, 0.99)
+mtcars %>% 
+  group_by(cyl) %>% 
+  summarise(p = list(probs), q = list(quantile(mpg, probs))) %>% 
+  unnest()
+```
+```
+#> # A tibble: 15 × 3
+#>     cyl     p     q
+#>   <dbl> <dbl> <dbl>
+#> 1     4  0.01  21.4
+#> 2     4  0.25  22.8
+#> 3     4  0.50  26.0
+#> 4     4  0.75  30.4
+#> 5     4  0.99  33.8
+#> 6     6  0.01  17.8
+#> # ... with 9 more rows
+```
+
+## 4.4 有命名的列表
+如果想要同时对列表元素的名字和内容进行循环，可以用 `tibble::enframe()` 创建数据框：
+```{r}
+x <- list(
+  a = 1:5,
+  b = 3:4, 
+  c = 5:6
+) 
+
+df <- enframe(x)
+df
+```
+```
+#> # A tibble: 3 × 2
+#>    name     value
+#>   <chr>    <list>
+#> 1     a <int [5]>
+#> 2     b <int [2]>
+#> 3     c <int [2]>
+```
+
+使用 `map2()` 同时对元素名 `name` 和内容 `value` 进行循环：
+```{r}
+df %>% 
+  mutate(
+    smry = map2_chr(name, value, ~ stringr::str_c(.x, ": ", .y[1]))
+  )
+```
+```
+#> # A tibble: 3 × 3
+#>    name     value  smry
+#>   <chr>    <list> <chr>
+#> 1     a <int [5]>  a: 1
+#> 2     b <int [2]>  b: 3
+#> 3     c <int [2]>  c: 5
+```
+
+# 5 列表-列转换为常规列
+为了应用数据转换、数据可视化的技术，需要将列表-列转换为常规列。转换的方法取决于每个元观测会产出一个值还是多个值：  
+
++ 1 如果产出一个值，使用 `mutate()` 和 `map_lgl()` 、 `map_int()` 、 `map_dbl()` 、 `map_chr()` 生成一个原子向量
+
++ 2 如果产出多个值，使用 `unnest()` ，每个元观测都会重复必要的次数
+
+## 5.1 列表-列转换为向量
+如果可以将列表-列转换为原子向量，就可以将其作为一个常规列。例如，返回一个对象的数据类型和长度：
+```{r}
+df <- tribble(
+  ~x,
+  letters[1:5],
+  1:3,
+  runif(5)
+)
+  
+df %>% mutate(
+  type = map_chr(x, typeof),
+  length = map_int(x, length)
+)
+```
+```
+#> # A tibble: 3 × 3
+#>           x      type length
+#>      <list>     <chr>  <int>
+#> 1 <chr [5]> character      5
+#> 2 <int [3]>   integer      3
+#> 3 <dbl [5]>    double      5
+```
+
+也可以利用 `map_*()` 函数族的快捷操作，将嵌套的列表-列转换为常规列，同时用 `.null` 参数填充缺失值：
+```{r}
+df <- tribble(
+  ~x,
+  list(a = 1, b = 2),
+  list(a = 2, c = 4)
+)
+df %>% mutate(
+  a = map_dbl(x, "a"),
+  b = map_dbl(x, "b", .null = NA_real_)
+)
+```
+```
+#> # A tibble: 2 × 3
+#>            x     a     b
+#>       <list> <dbl> <dbl>
+#> 1 <list [2]>     1     2
+#> 2 <list [2]>     2    NA
+```
+
+## 5.2 解嵌套
+`unnest()` 的工作原理是列表-列中有多少个元素，就对常规列重复多少次：
+```{r}
+tibble(x = 1:2, y = list(1:4, 1)) %>% unnest(y)
+```
+```
+#> # A tibble: 5 × 2
+#>       x     y
+#>   <int> <dbl>
+#> 1     1     1
+#> 2     1     2
+#> 3     1     3
+#> 4     1     4
+#> 5     2     1
+```
+
+因此，不能同时解嵌套两个元素个数不同的列表-列：
+```{r}
+# Ok, because y and z have the same number of elements in
+# every row
+df1 <- tribble(
+  ~x, ~y,           ~z,
+   1, c("a", "b"), 1:2,
+   2, "c",           3
+)
+
+df1
+```
+```
+#> # A tibble: 2 × 3
+#>       x         y         z
+#>   <dbl>    <list>    <list>
+#> 1     1 <chr [2]> <int [2]>
+#> 2     2 <chr [1]> <dbl [1]>
+```
+```{r}
+df1 %>% unnest(y, z)
+```
+```
+#> # A tibble: 3 × 3
+#>       x     y     z
+#>   <dbl> <chr> <dbl>
+#> 1     1     a     1
+#> 2     1     b     2
+#> 3     2     c     3
+```
+```{r}
+# Doesn't work because y and z have different number of elements
+df2 <- tribble(
+  ~x, ~y,           ~z,
+   1, "a",         1:2,  
+   2, c("b", "c"),   3
+)
+df2
+```
+```
+#> # A tibble: 2 × 3
+#>       x         y         z
+#>   <dbl>    <list>    <list>
+#> 1     1 <chr [1]> <int [2]>
+#> 2     2 <chr [2]> <dbl [1]>
+```
+```{r}
+df2 %>% unnest(y, z)
+```
+
+# 6 用 `broom` 包创建规整数据
++ `broom::glance(model)` returns a row for each model. Each column gives a model summary: either a measure of model quality, or complexity, or a combination of the two.
+
++ `::tidy(model)` returns a row for each coefficient in the model. Each column gives information about the estimate or its variability.
+
++ `broom::augment(model, data)` returns a row for each row in data, adding extra values like residuals, and influence statistics.
