@@ -29,12 +29,12 @@
 	+ 循环
 + **Model**  
 ![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-model.png)
-	+ Model basics
-	+ Model building
-	+ Many models
+	+ 建模基础
+	+ 模型构建
+	+ 更多模型
 + **Communicate**  
 ![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-communicate.png)
 	+ R Markdown
-	+ Graphics for communication
-	+ R Markdown formats
-	+ R Markdown workflow
+	+ 沟通绘图
+	+ R Markdown 版式
+	+ R Markdown 工作流
