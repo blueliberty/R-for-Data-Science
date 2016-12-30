@@ -1,0 +1,443 @@
+---
+title: "沟通绘图"
+output: html_notebook
+---
+
+# 目录
++ 1 前提准备
++ 2 标题
++ 3 注释
++ 4 尺度
+    + 4.1 坐标轴刻度和标签
+    + 4.2 图例
+    + 4.3 坐标尺度
+    + 4.4 颜色尺度
++ 5 缩放
++ 6 主题
++ 7 保存
+    + 7.1 图表大小
+    + 7.2 其他重要选项
++ 8 更多学习资料
+
+# 1 前提准备
+```{r}
+library(tidyverse)
+```
+
+# 2 标题
+使用 `labs()` 为图表添加标题：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(color = class)) +
+  geom_smooth(se = FALSE) +
+  labs(title = "Fuel efficiency generally decreases with engine size")
+```
+
+标题的目的在于总结该图表的主要发现。避免使用简单描述图表内容的标题，例如 "A scatterplot of engine displacement vs. fuel economy" 。
+
+还有两种方法为图表添加更多文字：  
+
++ `subtitle` ：在标题下方用较小字体添加额外细节
+
++ `caption` ：在图表右下角添加文字，通常用于描述数据来源
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(color = class)) +
+  geom_smooth(se = FALSE) +
+  labs(
+    title = "Fuel efficiency generally decreases with engine size",
+    subtitle = "Two seaters (sports cars) are an exception because of their light weight",
+    caption = "Data from fueleconomy.gov"
+  )
+```
+
+可以使用 `labs()` 替换坐标轴和图例标题。建议将横纵坐标标题，由变量名替换为更加细节的描述，并附上单位：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_smooth(se = FALSE) +
+  labs(
+    x = "Engine displacement (L)",
+    y = "Highway fuel economy (mpg)",
+    colour = "Car type"
+  )
+```
+
+标题中可以包含数学公式，将 `""` 替换为 `quote()` ，更多细节可以键入 `?plotmath` 查看：
+```{r}
+df <- tibble(
+  x = runif(10),
+  y = runif(10)
+)
+ggplot(df, aes(x, y)) +
+  geom_point() +
+  labs(
+    x = quote(sum(x[i] ^ 2, i == 1, n)),
+    y = quote(alpha + beta + frac(delta, theta))
+  )
+```
+
+# 3 注释
+使用 `geom_text()` 可以为单个观测或一组观测添加注释。 `geom_text()` 函数与 `geom_point()` 函数类似，但是多了一个属性 `label` ，使其能够在图表中添加文字标签，即注释。例如，在图表中标注每一组别中效率最高的汽车：
+```{r}
+best_in_class <- mpg %>%
+  group_by(class) %>%
+  filter(row_number(desc(hwy)) == 1)
+
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_text(aes(label = model), data = best_in_class)
+```
+
+由于注释和散点重叠在一起，很难阅读。使用 `geom_label()` 可以在注释外绘制矩形框，同时使用 `nudge_y` 参数将注释调整到散点上方：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_label(aes(label = model), data = best_in_class, nudge_y = 2, alpha = 0.5)
+```
+
+注意到左上方的两个注释重叠在一起，使用 **`ggrepel`** 包可以对注释位置自动进行调整：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_point(size = 3, shape = 1, data = best_in_class) +
+  ggrepel::geom_label_repel(aes(label = model), data = best_in_class)
+```
+
+注意在上图中添加了第二个图层，使用尺寸较大的空心散点来强调被注释的点。
+
+还可以使用该方法在图表中添加标签，以替代图例：
+```{r}
+class_avg <- mpg %>%
+  group_by(class) %>%
+  summarise(
+    displ = median(displ),
+    hwy = median(hwy)
+  )
+
+ggplot(mpg, aes(displ, hwy, colour = class)) +
+  ggrepel::geom_label_repel(aes(label = class),
+    data = class_avg,
+    size = 6,
+    label.size = 0,
+    segment.color = NA
+  ) +
+  geom_point() +
+  theme(legend.position = "none")
+```
+
+还可以在图表中添加标题，同样需要创建一个数据框。例如，在图表的角落里添加标题，使用 `summarise()` 函数计算 x 和 y 的最大值：
+```{r}
+label <- mpg %>%
+  summarise(
+    displ = max(displ),
+    hwy = max(hwy),
+    label = "Increasing engine size is \nrelated to decreasing fuel economy."
+  )
+
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  geom_text(aes(label = label), data = label, vjust = "top", hjust = "right")
+```
+
+如果要做图表的边界添加文字标题，可以使用 `+Inf` 和 `-Inf` 。由于标题的位置不来自 `mpg` 数据集，可以直接使用 `tibble()` 创建数据框：
+```{r}
+label <- tibble(
+  displ = Inf,
+  hwy = Inf,
+  label = "Increasing engine size is \nrelated to decreasing fuel economy."
+)
+
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  geom_text(aes(label = label), data = label, vjust = "top", hjust = "right")
+```
+
+在上图的标题中，使用 `"\n"` 来换行。另一种方式是使用 `stringr::str_wrap()` 来自动换行，需要设置每一行的字符个数：
+```{r}
+"Increasing engine size is related to decreasing fuel economy." %>%
+  stringr::str_wrap(width = 40) %>%
+  writeLines()
+```
+
+注意， `hjust` 和 `vjust` 参数用于控制标题的哪个角与选定的坐标对其。具体的设置方式如下：  
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/just-1.png)
+
+除了 `geom_text()` ， `ggplot2` 中还有其他几何对象可以用于添加注释：  
+
++ `geom_hline()` 和 `geom_vline()` 用于添加参考线。通常使用比较宽的白线（`size = 2, colour = white`）作为参考线，并将其绘制于主要图层下方。
+
++ `geom_rect()` 用于在特定点外绘制矩形框，分别使用 `xmin` 、 `xmax` 、 `ymin` 、 `ymax` 图形属性来控制矩形框的边界。
+
++ `geom_segment()` 函数和 `arrow` 参数可以为点绘制箭头。 `x` 和 `y` 图形属性控制箭头的起点位置， `xend` 和 `yend` 控制箭头的终点位置。
+
+# 4 尺度
+通常 `ggplot2` 会自动为图表添加尺度。例如，运行以下代码：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class))
+```
+
+实际上 `ggplot2` 在后台运行的代码是：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  scale_x_continuous() +
+  scale_y_continuous() +
+  scale_colour_discrete()
+```
+
+注意尺度的命名格式： `scale_` 后面接图形属性，然后是 `_` ，再加上尺度的名称。尺度的名称依据的是变量的类型：continuous 、 discrete 、 datetime 或 date 。
+
+## 4.1 坐标轴刻度和标签
+有两个主要的参数可以控制坐标轴的外观： `breaks` 和 `labels` 。 `breaks` 控制刻度的位置， `labels` 控制刻度旁显示的文字标签。 `breaks` 是最为常用的参数：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  scale_y_continuous(breaks = seq(15, 40, by = 5))
+```
+
+`labels` 是和 `breaks` 一样长度的向量，可以使用 `NULL` 来设置不显示刻度标签：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  scale_x_continuous(labels = NULL) +
+  scale_y_continuous(labels = NULL)
+```
+
+You can also use `breaks` and `labels` to control the appearance of legends. Collectively axes and legends are called **guides**. Axes are used for x and y aesthetics; legends are used for everything else.
+
+如果只有为数不多的点，可以使用坐标轴刻度和标签对这些点进行强调：
+```{r}
+presidential %>%
+  mutate(id = 33 + row_number()) %>%
+  ggplot(aes(start, id)) +
+    geom_point() +
+    geom_segment(aes(xend = end, yend = id)) +
+    scale_x_date(NULL, breaks = presidential$start, date_labels = "'%y")
+```
+
+注意，日期和日期时间尺度的 `breaks` 、 `labels` 参数设置方法有所不同：  
+
++ `date_labels` 接收参数的格式与 `parse_datetime()` 函数相同
+
++ `date_breaks` 接收字符串，例如 “2 days” 或 “1 month”
+
+## 4.2 图例
+`theme()` 可以控制图例的位置：
+```{r}
+base <- ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class))
+
+base + theme(legend.position = "left")
+```
+```{r}
+base + theme(legend.position = "top")
+```
+```{r}
+base + theme(legend.position = "bottom")
+```
+```{r}
+base + theme(legend.position = "right") # the default
+```
+
+```{r}
+base + theme(legend.position = "none")
+```
+
+使用 `guides()` 和 `guide_legend()` 、 `guide_colourbar()` 可以控制图例的外观：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_smooth(se = FALSE) +
+  theme(legend.position = "bottom") +
+  guides(colour = guide_legend(nrow = 1, override.aes = list(size = 4)))
+```
+
+## 4.3 坐标尺度
+在之前的例子中，对 `diamonds` 数据集中的 `carat` 和 `price` 变量进行了对数变换：
+```{r}
+ggplot(diamonds, aes(carat, price)) +
+  geom_bin2d()
+```
+```{r}
+ggplot(diamonds, aes(log10(carat), log10(price))) +
+  geom_bin2d()
+```
+
+在图形属性中对变量进行对数转换，坐标轴标题也会被改变为转换后的变量名。使用尺度转换，可以保留原变量名不变：
+```{r}
+ggplot(diamonds, aes(carat, price)) +
+  geom_bin2d() + 
+  scale_x_log10() + 
+  scale_y_log10()
+```
+
+## 4.4 颜色尺度
+类别变量会默认在颜色轮中等间距地选择颜色，可以选择改变调色板：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(color = drv))
+```
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(color = drv)) +
+  scale_colour_brewer(palette = "Set1")
+```
+
+为了防止黑白打印会丢失颜色，可以同时将形状映射给变量：
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(color = drv, shape = drv)) +
+  scale_colour_brewer(palette = "Set1")
+```
+
+所有的调色板都储存在 http://colorbrewer2.org/ ，并通过 **`RColorBrewer`**` 包在 R 中实现。下图列出了所有的调色板：  
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/brewer-1.png)
+
+可以使用 `scale_colour_manual()` 手动设置变量到颜色的映射。例如，用红色代表共和党，蓝色代表民主党：
+```{r}
+presidential %>%
+  mutate(id = 33 + row_number()) %>%
+  ggplot(aes(start, id, colour = party)) +
+    geom_point() +
+    geom_segment(aes(xend = end, yend = id)) +
+    scale_colour_manual(values = c(Republican = "red", Democratic = "blue"))
+```
+
+对于连续变量，可以使用 `scale_colour_gradient()` 和 `scale_fill_gradient()` 函数。如果取值有正负值，可以使用 `scale_colour_gradient2()` 函数，可以分别给正值和负值不同的颜色，有利于区分高于、低于均值的点。
+
+另一种选择是使用 **`viridis`** 包的 `scale_colour_viridis()` 函数：
+```{r}
+df <- tibble(
+  x = rnorm(10000),
+  y = rnorm(10000)
+)
+ggplot(df, aes(x, y)) +
+  geom_hex() +
+  coord_fixed()
+```
+
+```{r}
+ggplot(df, aes(x, y)) +
+  geom_hex() +
+  viridis::scale_fill_viridis() +
+  coord_fixed()
+```
+
+所有的颜色尺度函数都有两个变种： `scale_colour_x()` 和 `scale_fill_x()` ，对应 `colour` 和 `fill` 两种图形属性。 
+
+# 5 缩放
+有三种方式可以控制图表的界限：  
+
++ 1 改变绘制的数据
+
++ 2 在尺度中设置界限
+
++ 3 在 `coord_cartesian()` 中设置 `xlim` 和 `ylim`
+
+为了缩放图表的大小，最好使用 `coord_cartesian()` 而非改变数据。对比下面两幅图，改变数据的范围，会改变拟合出的曲线：
+```{r}
+mpg %>%
+  filter(displ >= 5, displ <= 7, hwy >= 10, hwy <= 30) %>%
+  ggplot(aes(displ, hwy)) +
+  geom_point(aes(color = class)) +
+  geom_smooth()
+```
+```{r}
+ggplot(mpg, mapping = aes(displ, hwy)) +
+  geom_point(aes(color = class)) +
+  geom_smooth() +
+  coord_cartesian(xlim = c(5, 7), ylim = c(10, 30))
+```
+
+在对数据集中的不同分组分别绘制图表，需要保持坐标轴界限一致，否则难以进行比较：
+```{r}
+suv <- mpg %>% filter(class == "suv")
+compact <- mpg %>% filter(class == "compact")
+
+ggplot(suv, aes(displ, hwy, colour = drv)) +
+  geom_point()
+```
+```{r}
+ggplot(compact, aes(displ, hwy, colour = drv)) +
+  geom_point()
+```
+
+使用以下方式保持坐标轴界限一致：
+```{r}
+x_scale <- scale_x_continuous(limits = range(mpg$displ))
+y_scale <- scale_y_continuous(limits = range(mpg$hwy))
+col_scale <- scale_colour_discrete(limits = unique(mpg$drv))
+
+ggplot(suv, aes(displ, hwy, colour = drv)) +
+  geom_point() +
+  x_scale +
+  y_scale +
+  col_scale
+```
+```{r}
+ggplot(compact, aes(displ, hwy, colour = drv)) +
+  geom_point() +
+  x_scale +
+  y_scale +
+  col_scale
+```
+
+# 6 主题
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(color = class)) +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+```
+
+`ggplot2` 包含了以下8种主题，更多主题可以在 **`ggthemes`** （ https://github.com/jrnold/ggthemes ）中获得：
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/visualization-themes.png)
+
+# 7 保存
+主要有两种方式可以保存绘制的图表： `ggsave()` 和 knitr 。 `ggsave()` 可以保存最近绘制的一幅图表：
+```{r}
+ggplot(mpg, aes(displ, hwy)) + geom_point()
+```
+```{r}
+ggsave("my-plot.pdf")
+```
+
+如果没有指定 `width` 和 `height` ，会默认使用当前绘图设备的维度。所以为了保证保存的图表长宽一致，最好显式设置 `width` 和 `height` 。
+
+## 7.1 图表大小
+本文主要介绍在 R Markdown 中绘制图表时，对图表大小的设置方法。一共有5个主要选项可以控制图表的大小： `fig.width` 、 `fig.height` 、 `fig.asp` 、 `out.width` 和 `out.height` 。图表的大小包括在 R 中绘制时的大小和放置于输出文件时的大小。通常只使用以下3个选项来控制图表大小：  
+
++ 最好保持图表的宽度一致，推荐使用 `fig.width = 6` 和 `fig.asp = 0.618` 作为默认设置，在需要时可以更改 `fig.asp` 。
+
++ 使用 `out.width` 控制图表输出时的大小，该参数表示页宽的百分比，推荐使用 `out.width = "70%"` 和 `fig.align = "center"` 作为默认设置，这样可以保证图表的周围有足够的空间
+
++ 如果要在一行中放置两张图表，设置 `out.width = "50%"` ，三张图表，则设置 `out.width = 33%` ，同时设置 `fig.align = "default"` 
+
+如果 `fig.width` 比最终文档的宽度更大，文字会过小；如果 `fig.width` 比最终文档的宽度更小，文字会过大。所以需要对 `fig.width` 的设置值进行调试。以下是将 `fig.width` 分别设置为4、6、8时绘制的图表：  
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/unnamed-chunk-35-1.png)
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/unnamed-chunk-36-1.png)
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/unnamed-chunk-37-1.png)
+
+如果需要保证每幅图表中的字体大小一致，则需要在设置 `out.width` 时调整 `fig.width` 来保证比例的一致。例如，默认的 `fig.width` 是6， `out.width` 是0.7，如果要设置 `out.width = "50%"` ，则需要将 `fig.width` 设置为4.3（6 * 0.5 / 0.7）。
+
+## 7.2 其他重要选项
+设置 `fig.show = "hold"` 使图表可以显示在代码之后。
+
+设置 `fig.cap` 为图表添加标签。
+
+设置 `dev = "png"` 使图表格式从默认的 PDF 转换为 PNG 。
+
+建议为绘图的代码块命名，保存图表时，文件名会默认应用代码块标题。
+
+# 8 更多学习资料
++ 推荐 [ggplot2: Elegant graphics for data analysis](https://amzn.com/331924275X) 一书，书中源代码位于 https://github.com/hadley/ggplot2-book
+
++ `ggplot2` 的众多扩展包可以在 http://www.ggplot2-exts.org/ 找到
