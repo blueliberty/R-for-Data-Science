@@ -38,7 +38,7 @@ R Markdown Ö÷ÒªÓÃÓÚÒÔÏÂÈıÖÖÄ¿µÄ£º
 # 2 R Markdown »ù´¡
 ÏÂÍ¼ÊÇÒ»¸ö R Markdown ÎÄ¼ş£¬ºó×ºÃûÎª `.Rmd` £º
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/rmd.jpg)
 
 R Markdown ÎÄ¼şÖĞ°üº¬ÈıÖÖÖØÒªµÄÄÚÈİ£º  
 
@@ -50,15 +50,15 @@ R Markdown ÎÄ¼şÖĞ°üº¬ÈıÖÖÖØÒªµÄÄÚÈİ£º
 
 ÔËĞĞ `.Rmd` ÎÄ¼ş£¬»áµÃµ½´úÂëÓëÊä³öÍ¬Ê±Õ¹Ê¾µÄ½çÃæ¡£¿ÉÒÔµã»÷²¥·Å°´Å¥»òÔÚ¼üÅÌÉÏµã»÷ Cmd/Ctrl + Shift + Enter ¡£ RStudio »áÖ´ĞĞ´úÂë£¬²¢ÔÚ´úÂëÖ®ºóÕ¹Ê¾Êä³ö½á¹û£º
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/diamond-sizes-notebook.png)
 
 ÎªÁË²ú³ö°üº¬ÎÄ×Ö¡¢´úÂë¡¢Êä³ö½á¹ûµÄÍêÕû±¨¸æ£¬¿ÉÒÔµã»÷ Knit °´Å¥»òÔÚ¼üÅÌÉÏµã»÷ Cmd/Ctrl + Shift + K £¬Ò²¿ÉÒÔÍ¨¹ıÔËĞĞ´úÂë `rmarkdown::render("1-example.Rmd")` ÊµÏÖ¡£±¨¸æ»áÔÚ Viewer ÖĞÏÔÊ¾£¬²¢²úÉúÒ»¸ö HTML ÎÄ¼ş¡£
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/diamond-sizes-report.png)
 
 µ±Äã **Knit** Ò»¸öÎÄ¼şÊ±£¬ R Markdown »á½« .Rmd ÎÄ¼ş´«¸ø [**Knitr**](http://yihui.name/knitr/) £¬ **Knitr** »áÖ´ĞĞËùÓĞµÄ´úÂë¿é²¢Éú³ÉÒ»¸öĞÂµÄ markdown ÎÄ¼ş£¨.md£©£¬¸ÃÎÄ¼şÖĞ»á°üº¬ËùÓĞµÄ´úÂë¼°Êä³ö¡£ÔÚÕâÖ®ºó£¬ markdown ÎÄ¼ş»á±»´«¸ø [**pandoc**](http://pandoc.org/) À´Éú³É×îÖÕµÄÎÄ¼ş¡£ÕâÖÖÁ½²½Öè¹¤×÷Á÷³ÌµÄºÃ´¦ÔÚÓÚ¿ÉÒÔÉú³ÉºÜ¶àÖÖ¸ñÊ½µÄÎÄ¼ş¡£
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/RMarkdownFlow.png)
 
 # 3 Markdown ÎÄ×Ö¸ñÊ½
 `.Rmd` ÎÄ¼şÖĞµÄÎÄ×ÖÊÇÓÃ Markdown ÓïÑÔĞ´³ÉµÄ¡£ÏÂÃæµÄÖ¸ÒıÊÇÓÃ Pandoc¡¯s Markdown Ğ´³ÉµÄ£¬ÊÇ¶ÔÔ­Éú Markdown µÄÀ©Õ¹£¬²¢ÇÒÄÜ¹»±» R Markdown Ê¶±ğ£º
@@ -131,7 +131,7 @@ Cmd/Ctrl + Enter ÔËĞĞÑ¡ÖĞĞĞµÄ´úÂë£¬ Cmd/Ctrl + Shift + Enter ÔËĞĞÑ¡ÖĞ´úÂë¿éµÄ´úÂ
 
 + 1 ¿ÉÒÔÔÚ±à¼­Æ÷×óÏÂ½ÇµÄµ¼º½ÌõÖĞÍ¨¹ıÃüÃû¿ìËÙ¶¨Î»´úÂë¿é
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/rmarkdown-chunk-nav.png)
 
 + 2 ÃüÃûºóµÄ´úÂë¿é»æÖÆµÄÍ¼±í£¬»á¼Ì³Ğ´úÂë¿éµÄÃû³Æ
 
@@ -196,17 +196,17 @@ knitr::kable(
 
 µ«ÊÇÕâÑù×öÒ²»á²úÉúÎÊÌâ£¬ÒòÎª knitrÖ»»á¼ì²é´úÂë±¾ÉíÓĞÃ»ÓĞ¸Ä±ä£¬¶ø²»»áÈ¥¼ì²éÓë¸Ã¶Î´úÂëÏà¹ØµÄÆäËû´úÂëÓĞÃ»ÓĞ¸Ä±ä¡£ÀıÈç£¬ÏÂÃæµÄ `processed_data` ´úÂë¿éÒÀÀµÓÚ `raw_data` ´úÂë¿é£º
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/caching.png)
 
 ¶Ô `processed_data` ÉèÖÃ»º´æ£¬ÒâÎ¶×Å dplyr µÄ¹ÜµÀ²Ù×÷Èç¹û·¢Éú¸Ä±ä£¬¾Í»áÖØĞÂÔËĞĞ¸Ã¶Î´úÂë¡£µ«ÊÇÈç¹û `raw_data` ÖĞµÄ `read_csv()` ·¢Éú¸Ä±ä£¬Ôò²»»áÖØĞÂÔËĞĞ¡£¿ÉÒÔÍ¨¹ıÉèÖÃ `dependson` À´±ÜÃâÕâ¸öÎÊÌâ£º
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/dependson.png)
 
 Knitr Èç¹û¼ì²âµ½Ä³¸öÒÀÀµ´úÂë¿é·¢Éú¸Ä±ä£¬¾Í»áÖØĞÂÔËĞĞ±»»º´æµÄ´úÂë¿é¡£
 
 µ«ÊÇ»¹ÓĞÒ»¸öÎÊÌâ£¬Èç¹û `a_very_large_file.csv` ÎÄ¼ş·¢Éú¸Ä±äÁË£¬ knitr ²»»áÖØĞÂÔËĞĞ±»»º´æµÄ´úÂë¿é¡£¿ÉÒÔÉèÖÃ `cache.extra` Ñ¡Ïî£¬¸ÃÑ¡ÏîµÄ×÷ÓÃÊÇ£¬Ö»ÓĞ±í´ïÊ½ÖĞµÄÄÚÈİ·¢ÉúÈÎºÎ¸Ä±ä£¬¾Í»áÖØÖÃÕû¸ö»º´æ¡£Ó¦¶Ô `a_very_large_file.csv` ÎÄ¼ş¿ÉÄÜ·¢Éú¸Ä±äµÄÎÊÌâ£¬¿ÉÒÔÓë `file.info()` º¯ÊıºÏÓÃ£¨¸Ãº¯Êı»á·µ»ØÎÄ¼şµÄÒ»×éĞÅÏ¢£¬°üÀ¨¸ÃÎÄ¼ş×îºóÒ»´Î¸üĞÂµÄÊÀ½ç£©£º
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/cache.extra.png)
 
 »¹ÓĞÒ»ÖÖ²ßÂÔÊÇ£¬Ê¹ÓÃ `knitr::clean_cache()` ¶¨ÆÚÇå¿Õ»º´æ¡£
 
@@ -232,11 +232,11 @@ knitr::opts_chunk$set(
 ## 4.6 ĞĞÄÚ´úÂë
 Ê¹ÓÃ ` ·ûºÅ¿ÉÒÔÊéĞ´ĞĞÄÚ´úÂë¡£ÀıÈç£¬Èç¹ûÔÚ R Markdown ÖĞÊéĞ´ÈçÏÂÎÄ×ÖºÍĞĞÄÚ´úÂë£º
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/inlinecode-1.png)
 
 ÔÚ½øĞĞ knit Ê±£¬ĞĞÄÚ´úÂë»áÔËĞĞ£¬ÏÔÊ¾ÈçÏÂ£º
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/inlinecode-2.png)
 
 ĞĞÄÚ´úÂë¿ÉÒÔÓë `format()` ºÏÓÃ£¬ÉèÖÃ `digits` ²ÎÊı¿ØÖÆĞ¡Êıµã¾«¶È£¬ÉèÖÃ `big.mark` ²ÎÊıÉèÖÃÇ§·ÖÎ»·û£º
 ```{r}
@@ -261,7 +261,7 @@ Next, brainstorm all the things that might cause the bug. You¡¯ll need to system
 ## 6.1 ÎÄ¼ş²ÎÊı
 R Markdown ¿ÉÒÔ°üº¬Èô¸É¸ö²ÎÊı£¬ÔÚ²ú³ö±¨¸æÊ±½øĞĞ¸³Öµ¡£²ÎÊıµÄÓÃ´¦ÔÚÓÚ£¬¿ÉÒÔ¶Ô²»Í¬µÄ²ÎÊı¸³Öµ²ú³öÍ¬ÑùµÄ±¨¸æ¡£ÀıÈç£¬²ú³öÃ¿¸ö·Ö¹«Ë¾µÄÏúÊÛ±¨¸æ¡¢Ã¿¸öÑ§ÉúµÄ¿¼ÊÔ³É¼¨¡¢Ã¿¸ö¹ú¼ÒµÄÈË¿ÚÍ³¼Æ±¨¸æ¡£ÎªÁË´ïµ½ÕâÒ»Ä¿µÄ£¬Ê¹ÓÃ `params` ²ÎÊı¡£ÏÂÃæµÄÀı×ÓÊ¹ÓÃ `my_class` ²ÎÊıÀ´¾ö¶¨Õ¹Ê¾ÄÄ¸öÀà±ğµÄÆû³µ£º
 
-ÕâÀïÓĞ·ùÍ¼
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/params.png)
 
 `params` ÒÔÁĞ±íµÄĞÎÊ½´æÔÚ¡£
 
