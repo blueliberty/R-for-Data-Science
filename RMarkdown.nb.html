@@ -420,6 +420,9 @@ Content Cell  | Content Cell</code></pre>
 <p>默认情况下， R Markdown 会按照在控制台显示的样子来打印数据框和矩阵：</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubXRjYXJzWzE6NSwgXVxuYGBgIn0= -->
+<pre class="r"><code>mtcars[1:5, ]</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <pre><code>#&gt;                    mpg cyl disp  hp drat   wt qsec vs am gear carb
@@ -431,6 +434,12 @@ Content Cell  | Content Cell</code></pre>
 <p>可以使用 <code>knitr::kable</code> 函数将数据框打印成表格的形式：</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxua25pdHI6OmthYmxlKFxuICBtdGNhcnNbMTo1LCBdLCBcbiAgY2FwdGlvbiA9IFwiQSBrbml0ciBrYWJsZS5cIlxuKVxuYGBgIn0= -->
+<pre class="r"><code>knitr::kable(
+  mtcars[1:5, ], 
+  caption = &quot;A knitr kable.&quot;
+)</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>使用 <code>?knitr::kable</code> 阅读该函数的文档，了解更多的设置方式。 <strong>xtable</strong> 、 <strong>stargazer</strong> 、 **pande*r<strong> 、 </strong>tables<strong> 和 </strong>ascii** 包提供了更多用 R 代码创建表格的工具。</p>
