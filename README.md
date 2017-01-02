@@ -36,5 +36,5 @@
 ![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-communicate.png)
 	+ R Markdown
 	+ 沟通绘图
-	+ R Markdown 版式
-	+ R Markdown 工作流
+	+ R Markdown 输出格式
+	+ R Markdown 工作流程
