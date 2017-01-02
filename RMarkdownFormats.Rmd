@@ -1,0 +1,232 @@
+---
+title: "R Markdown 输出格式"
+output: html_notebook
+---
+
+# 目录
++ 1 介绍
++ 2 输出选项
++ 3 输出格式
++ 4 R Notebook
++ 5 幻灯片
++ 6 仪表盘
++ 7 互动
+    + 7.1 htmlwidgets
+    + 7.2 shiny
++ 8 网站
++ 9 其他输出格式
++ 10 更多学习资料
+
+# 1 介绍
+有两种方式可以设置 R Markdown 文件的输出格式：  
+
++ 1 修改 YAML header 永久性设置输出格式：
+```{r, eval = FALSE}
+title: "Viridis Demo"
+output: html_document
+```
+
++ 2 通过 `rmarkdown::render()` 临时性设置输出格式：
+```{r, eval = FALSE}
+rmarkdown::render("diamond-sizes.Rmd", output_format = "word_document")
+```
+
+RStudio 中 knit 按钮默认会输出 `output` 中列出的格式。可以通过选择下拉菜单中的其他按钮来输出额外的格式。
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/rmarkdown-knit.png)
+
+# 2 输出选项
+每一种输出格式都与一个 R 函数对应。例如， html 输出格式是通过函数 `rmarkdown:html_document()` 实现的。为了了解在 `html_document` 下能够进行哪些设置，可以运行 `?rmarkdown:html_document()` 。
+
+为了改写默认的参数值，需要改写 YAML header 中的 `output` 。例如，如果想要生成包含 floating table 的 `html_document` ，可以设置：
+```{r, eval = FALSE}
+output:
+  html_document:
+    toc: true
+    toc_float: true
+```
+
+还可以设置生成多种格式的输出：
+```{r, eval = FALSE}
+output:
+  html_document:
+    toc: true
+    toc_float: true
+  pdf_document: default
+```
+
+# 3 输出格式
+除了 `html_document` 格式外，R Markdown 还能够输出多种格式：  
+
++ `pdf_document` ：生成 PDF 文件，需要安装 LaTeX 
+
++ `word_document` ：生成 Microsoft Word 文件 (.docx)
+
++ `odt_document` ：生成 OpenDocument Text 文件 (.odt)
+
++ `rtf_document` ：生成 Rich Text Format (.rtf) 文件
+
++ `md_document` ：生成 Markdown 文件
+
++ `github_document`：生成特殊的 `md_document` 文件，适用于上传到 GitHub 中进行分享
+
+如果生成的报告是为了呈现给决策者，可以在全局设置中设置不显示代码：
+```{r, eval = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+针对 `html_document` 可以设置默认隐藏代码块，点击后显示：
+```{r, eval = FALSE}
+output:
+  html_document:
+    code_folding: hide
+```
+
+# 4 R Notebook
+`html_notebook` 是 `html_document` 的变种，两种输出格式非常类似，但是目的有所不同。 `html_document` 用于展示给决策者， `html_notebook` 用于和其他数据科学家进行协作。两种 HTML 格式都包含了所有的输出内容，但是 `html_notebook` 还包含了所有的源代码。这意味着可以从两个方面来使用 `.nb.html` 文件：  
+
++ 1 在浏览器中查看 `.nb.html` 文件，报告中会包含所有嵌入文件的源代码。
+
++ 2 在 RStudio 中编辑 `.nb.html` 文件。用 RStudio 打开 `.nb.html` 文件，会自动生成相应的 `.Rmd` 文件。在未来，还可以将一系列支持文件（如 `.csv` 文件）包含在其中。
+
+为了方便与其他数据科学家进行协作，可以同时设置 `html_notebook` 和 `github_document` 输出格式：
+```{r, eval = FALSE}
+output:
+  html_notebook: default
+  github_document: default
+```
+
+`html_notebook` 生成方便本地查看、邮件发送的文件。 `github_document` 生成可以上传至 git 的 md 文件，可以查看代码和分析不断迭代变化的过程。
+
+# 5 幻灯片
+可以用 R Markdown 将内容切分为幻灯片，从而生成便于展示的报告。一级（`#`）或二级（`##`）标题可以生成一页带标题的幻灯片，也可以用 `***` 生成不带标题的一页幻灯片。
+
+R Markdown 内置三种用于展示的输出格式：  
+
++ `ioslides_presentation` - HTML presentation with ioslides
+
++ `slidy_presentation` - HTML presentation with W3C Slidy
+
++ `beamer_presentation` - PDF presentation with LaTeX Beamer.
+
+还有两种通过扩展包提供的输出格式：  
+
++ `revealjs::revealjs_presentation` - HTML presentation with reveal.js. Requires the **revealjs** package.
+
++ **rmdshower**, https://github.com/MangoTheCat/rmdshower, provides a wrapper around the **shower**, https://github.com/shower/shower, presentation engine
+
+# 6 仪表盘
+R Markdown 通过 flexdashboard 可以很容易地创建仪表盘：  
+
++ Each level 1 header (`#`) begins a new page in the dashboard.
++ Each level 2 header (`##`) begins a new column.
++ Each level 3 header (`###`) begins a new row.
+
+例如，可以创建如下仪表盘：
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/rmarkdown-flexdashboard.png)
+
+使用的代码为：
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/dashboard-code.png)
+
+Flexdashboard 还提供了工具用来创建 sidebars 、 tabsets 、 value boxes 、 gauges 。更多细节可以访问：http://rmarkdown.rstudio.com/flexdashboard/ 。
+
+# 7 互动
+任何 HTML 格式的输出文件（document 、 notebook 、 presentation 、 dashboard）都可以包含互动元素。
+
+## 7.1 htmlwidgets
+HTML 是一种互动格式， R 中的 **htmlwidgets** 能够生成可以互动的可视化 HTML 。例如下面的 **leaflet** 地图：
+```{r}
+library(leaflet)
+```
+
+```{r}
+leaflet() %>%
+  setView(174.764, -36.877, zoom = 16) %>% 
+  addTiles() %>%
+  addMarkers(174.764, -36.877, popup = "Maungawhau") 
+```
+
+还有很多包提供 htmlwidgets ，包括：  
+
++ **dygraphs**, http://rstudio.github.io/dygraphs/, for interactive time series visualisations.
+
++ **DT**, http://rstudio.github.io/DT/, for interactive tables.
+
++ **threejs**, https://github.com/bwlewis/rthreejs for interactive 3d plots.
+
++ **DiagrammeR**, http://rich-iannone.github.io/DiagrammeR/ for diagrams (like flow charts and simple node-link diagrams).
+
+更多细节可以访问：http://www.htmlwidgets.org/ 。
+
+## 7.2 shiny
+htmlwidgets 提供了客户端上的互动，即所有的互动都发生在浏览器中，且独立于 R 。**shiny** 提供了与 R 代码进行互动的途径。
+
+在 YAML header 中添加 `runtime: shiny` ，可以在 R Markdown 中使用 shiny ：
+```{r, eval = FALSE}
+title: "Shiny Web App"
+output: html_document
+runtime: shiny
+```
+
+然后就可以通过 input 函数在文件中添加互动元素了：
+```{r}
+library(shiny)
+```
+
+```{r, eval = FALSE}
+textInput("name", "What is your name?")
+numericInput("age", "How old are you?", NA, min = 0, max = 150)
+```
+
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/rmarkdown-shiny.png)
+
+然后就可以引用 `input$name` 和 `input$age` 的值，并且一旦这些值发生了改变，使用这些值的代码都会重新运行。
+
+更多细节可以访问：http://shiny.rstudio.com/ 。
+
+# 8 网站
+可以用 R Markdown 生成一个完整的网站：  
+
++ 将 `.Rmd` 文件放置于独立的工作目录， `index.Rmd` 会作为首页
+
++ 添加一个名为 `_site.yml` 的 YAML 文件，提供网站的导航目录。例如：
+```{r, eval = FALSE}
+name: "my-website"
+navbar:
+  title: "My Website"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "Viridis Colors"
+      href: 1-example.html
+    - text: "Terrain Colors"
+      href: 3-inline.html
+```
+
+运行 `rmarkdown::render_site()` 来生成独立的静态网站 `_site` 。如果在 RStudio 中，RStudio 会在 IDE 中添加一个 Build 按钮，用来生成和预览网站。
+
+更多细节可以访问：http://rmarkdown.rstudio.com/rmarkdown_websites.html 。
+
+# 9 其他输出格式
+其他包还提供了更多输出格式：
+
++ The **bookdown** package, https://github.com/rstudio/bookdown, makes it easy to write books, like this one. To learn more, read Authoring Books with R Markdown, by Yihui Xie, which is, of course, written in bookdown. Visit http://www.bookdown.org to see other bookdown books written by the wider R community.
+
++ The **prettydoc** package, https://github.com/yixuan/prettydoc/, provides lightweight document formats with a range of attractive themes.
+
++ The **rticles** package, https://github.com/rstudio/rticles, compiles a selection of formats tailored for specific scientific journals.
+
+See http://rmarkdown.rstudio.com/formats.html for a list of even more formats. You can also create your own by following the instructions at http://rmarkdown.rstudio.com/developer_custom_formats.html.
+
+# 10 更多学习资料
++ To improve your presentation skills, I recommend Presentation Patterns, by Neal Ford, Matthew McCollough, and Nathaniel Schutta. It provides a set of effective patterns (both low- and high-level) that you can apply to improve your presentations.
+
++ If you give academic talks, I recommend reading the Leek group guide to giving talks.
+
++ I haven’t taken it myself, but I’ve heard good things about Matt McGarrity’s online course on public speaking: https://www.coursera.org/learn/public-speaking.
+
++ If you are creating a lot of dashboards, make sure to read Stephen Few’s Information Dashboard Design: The Effective Visual Communication of Data. It will help you create dashboards that are truly useful, not just pretty to look at.
+
++ Effectively communicating your ideas often benefits from some knowledge of graphic design. The Non-Designer’s Design Book is a great place to start.
