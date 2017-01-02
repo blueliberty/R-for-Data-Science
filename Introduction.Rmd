@@ -2,13 +2,49 @@
 title: "导论"
 output: html_notebook
 ---
+
 # 目录
-+ 1 R语言在数据科学领域的工作流程
-+ 2 需要使用的包（packages）
++ 1 R for Data Science
++ 2 R语言在数据科学领域的工作流程
 + 3 `tidyverse` 包
 + 4 线上资源
 
-# 1 R语言在数据科学领域的工作流程
+# 1 R for Data Science
++ **Introduction**  
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science.png)
++ **Explore**  
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-explore.png)
+	+ 数据可视化
+	+ 数据转换
+	+ 探索性数据分析
++ **Wrangle**  
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-wrangle.png)
+	+ Tibbles
+	+ 数据导入
+	+ 数据规整
+	+ 联结
+	+ 字符串
+	+ 因子
+	+ 日期和时间
++ **Program**  
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-program.png)
+	+ 管道操作符
+	+ 函数
+	+ 向量
+	+ 循环
++ **Model**  
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-model.png)
+	+ 建模基础
+	+ 模型构建
+	+ 更多模型
++ **Communicate**  
+![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science-communicate.png)
+	+ R Markdown
+	+ 沟通绘图
+	+ R Markdown 输出格式
+	+ R Markdown 工作流程
+
+# 2 R语言在数据科学领域的工作流程
 + 1 数据**导入（import）**  
 将存储于文件、数据库、web API中的数据以数据框的形式导入R。
 
@@ -33,12 +69,6 @@ output: html_notebook
 作为数据科学家，并不需要成为一个编程专家。但是拥有良好的编程技能，可以让你将固定的工作自动化，从而节省出时间去解决更大的问题。
 
 ![](https://raw.githubusercontent.com/blueliberty/R-for-Data-Science/master/Pictures/data-science.png)
-
-# 2 需要使用的包（packages）
-```
-install.packages("tidyverse")
-install.packages(c("nycflights13", "gapminder", "Lahman"))
-```
 
 # 3 `tidyverse` 包
 ```{r}
